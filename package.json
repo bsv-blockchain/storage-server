@@ -21,7 +21,7 @@
     "@google-cloud/storage": "^5.16.1",
     "axios": "^0.21.1",
     "body-parser": "^1.19.0",
-    "dotenv": "^8.2.0",
+    "dotenv": "^16.4.7",
     "express": "^5.0.0-beta.1",
     "prettyjson": "^1.2.5"
   },
