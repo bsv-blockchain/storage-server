@@ -15,7 +15,7 @@
     "@bsv/payment-express-middleware": "^1.0.3",
     "@bsv/sdk": "^1.4.0",
     "@bsv/wallet-toolbox-client": "^1.2.1",
-    "@bugsnag/js": "^7.14.1",
+    "@bugsnag/js": "^8.2.0",
     "@bugsnag/plugin-express": "^7.14.0",
     "@google-cloud/storage": "^5.16.1",
     "axios": "^0.21.1",
