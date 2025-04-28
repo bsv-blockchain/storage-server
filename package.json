@@ -41,7 +41,7 @@
     "@types/prettyjson": "^0.0.33",
     "ejs": "^3.1.6",
     "jest": "^26.6.3",
-    "nodemon": "^2.0.19",
+    "nodemon": "^3.1.10",
     "standard": "^16.0.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
