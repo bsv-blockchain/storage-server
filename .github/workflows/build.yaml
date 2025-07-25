@@ -66,6 +66,6 @@ jobs:
           # push: ${{ github.event_name != 'pull_request' }} # Only push on push events, not PRs
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
-            ghcr.io/${{ github.repository }}:${{ needs.get_tag.outputs.deployment_tag }}
+            ghcr.io/${{ github.repository }}-s3-notifier:${{ github.sha }}
+            ghcr.io/${{ github.repository }}-s3-notifier:${{ needs.get_tag.outputs.deployment_tag }}
 
