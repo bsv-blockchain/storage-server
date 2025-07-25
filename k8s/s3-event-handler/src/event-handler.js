@@ -97,16 +97,34 @@ async function processS3Object(bucketName, objectKey) {
     });
     const metadata = await s3Client.send(headCommand);
     
+    console.log('S3 Object Metadata:', {
+      ContentLength: metadata.ContentLength,
+      ContentType: metadata.ContentType,
+      LastModified: metadata.LastModified,
+      Metadata: metadata.Metadata
+    });
+    
     // Extract uploader identity key from metadata
     let uploaderIdentityKey = '';
     if (metadata.Metadata && metadata.Metadata.uploaderidentitykey) {
       uploaderIdentityKey = metadata.Metadata.uploaderidentitykey;
+      console.log('Found uploaderIdentityKey in metadata:', uploaderIdentityKey);
+    } else {
+      console.warn('WARNING: uploaderidentitykey not found in S3 metadata for object:', objectKey);
+      console.warn('Available metadata keys:', Object.keys(metadata.Metadata || {}));
+      // Skip processing if no uploader identity key
+      console.error('Cannot process file without uploaderIdentityKey. File needs to be uploaded with proper metadata.');
+      throw new Error('Missing uploaderIdentityKey in S3 metadata');
     }
     
     // Get expiry time from custom metadata
     const expiryTime = metadata.Metadata?.customtime 
       ? Math.round(new Date(metadata.Metadata.customtime).getTime() / 1000)
       : Math.round(Date.now() / 1000) + (30 * 24 * 60 * 60); // Default 30 days
+    
+    if (!metadata.Metadata?.customtime) {
+      console.warn('No customtime found in metadata, using default expiry of 30 days');
+    }
     
     // Get the object to calculate hash
     const getCommand = new GetObjectCommand({

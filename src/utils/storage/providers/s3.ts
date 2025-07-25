@@ -49,15 +49,16 @@ export class S3StorageProvider implements StorageProvider {
     // Calculate the custom time (e.g., expiry time plus 5 minutes)
     const customTime = new Date((expiryTime + 300) * 1000).toISOString()
     
-    // For S3, there are two approaches:
-    // 1. Simple approach: Generate URL without metadata, add metadata after upload
-    // 2. Complex approach: Include metadata in presigned URL (requires exact headers)
-    
-    // Using approach 1 for simplicity - metadata will be added post-upload
+    // Include metadata in the presigned URL so it's available to the event handler
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: objectKey,
-      ContentLength: size
+      ContentLength: size,
+      // Include metadata that will be stored with the object
+      Metadata: {
+        'uploaderidentitykey': uploaderIdentityKey,
+        'customtime': customTime
+      }
     })
     
     // Generate presigned URL
@@ -65,12 +66,14 @@ export class S3StorageProvider implements StorageProvider {
       expiresIn: 604800 // 1 week in seconds
     })
     
-    // Store metadata for post-upload processing
-    // The advertise endpoint will handle setting metadata after upload
+    // Return the URL with required headers
+    // The client must include these headers exactly as specified
     return {
       uploadURL,
       requiredHeaders: {
-        'content-length': size.toString()
+        'content-length': size.toString(),
+        'x-amz-meta-uploaderidentitykey': uploaderIdentityKey,
+        'x-amz-meta-customtime': customTime
       }
     }
   }
