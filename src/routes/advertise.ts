@@ -1,15 +1,12 @@
-import { Storage } from '@google-cloud/storage';
 import createUHRPAdvertisement from '../utils/createUHRPAdvertisement';
 import { Request, Response } from 'express';
 import { StorageUtils } from '@bsv/sdk';
+import { getStorageProvider } from '../utils/storage';
 
 const {
   ADMIN_TOKEN,
-  HOSTING_DOMAIN,
-  GCP_BUCKET_NAME
+  HOSTING_DOMAIN
 } = process.env
-
-const storage = new Storage()
 
 interface AdvertiseRequest extends Request {
   body: {
@@ -49,12 +46,12 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
       contentLength: req.body.fileSize
     })
 
-    const storageFile = storage
-    .bucket(GCP_BUCKET_NAME as string)
-    .file(`cdn/${req.body.objectIdentifier}`)
+    const storage = getStorageProvider()
+    const objectKey = `cdn/${req.body.objectIdentifier}`
     
-    await storageFile.setMetadata({
-      customTime: new Date((expiryTime + 300) * 1000).toISOString()
+    await storage.updateObjectMetadata(objectKey, {
+      customTime: new Date((expiryTime + 300) * 1000).toISOString(),
+      uploaderidentitykey: req.body.uploaderIdentityKey
     })
 
     res.status(200).json({ status: 'success' })

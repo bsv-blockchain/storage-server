@@ -11,6 +11,10 @@
   "author": "BSV Association",
   "license": "SEE LICENSE IN LICENSE.txt",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/lib-storage": "^3.0.0",
+    "@aws-sdk/s3-presigned-post": "^3.850.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0",
     "@bsv/auth-express-middleware": "^1.2.2",
     "@bsv/payment-express-middleware": "^1.2.3",
     "@bsv/sdk": "^1.6.20",

@@ -1,0 +1,31 @@
+{
+  "name": "uhrp-s3-event-handler",
+  "version": "1.0.0",
+  "description": "S3 event handler for UHRP Storage Server running in Kubernetes",
+  "main": "src/event-handler.js",
+  "scripts": {
+    "start": "node src/event-handler.js",
+    "dev": "nodemon src/event-handler.js"
+  },
+  "keywords": [
+    "uhrp",
+    "s3",
+    "kubernetes",
+    "event-handler"
+  ],
+  "author": "UHRP Team",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/client-sqs": "^3.0.0",
+    "@bsv/sdk": "^1.6.20",
+    "axios": "^1.6.0",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

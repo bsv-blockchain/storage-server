@@ -21,6 +21,7 @@ interface UploadResponse {
   uploadURL?: string
   publicURL?: string
   requiredHeaders?: Record<string, string>
+  formFields?: Record<string, string>
   amount?: number
   code?: string
   description?: string
@@ -71,7 +72,7 @@ export async function uploadHandler(req: UploadRequest, res: Response<UploadResp
     const amount = await getPriceForFile({ fileSize, retentionPeriod })
     const objectIdentifier = Utils.toBase58(Array.from(crypto.randomBytes(16)))
 
-    const { uploadURL, requiredHeaders } = await getUploadURL({
+    const { uploadURL, requiredHeaders, formFields } = await getUploadURL({
       size: fileSize,
       objectIdentifier,
       uploaderIdentityKey: req.auth.identityKey,
@@ -79,11 +80,13 @@ export async function uploadHandler(req: UploadRequest, res: Response<UploadResp
     })
     console.log('upload URL', uploadURL)
     console.log('requiredHeaders', requiredHeaders)
+    console.log('formFields', formFields)
 
     return res.status(200).json({
       status: 'success',
       uploadURL,
       requiredHeaders,
+      formFields,
       amount,
       description: 'File can now be uploaded.'
     })
