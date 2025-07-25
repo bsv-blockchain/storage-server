@@ -4,7 +4,11 @@ const { NODE_ENV } = process.env
 
 const devUploadFunction = (): Promise<UploadResponse> => {
   console.log('[DEV] Returning pretend upload URL http://localhost:8080/upload')
-  return Promise.resolve({ uploadURL: 'http://localhost:8080/upload', requiredHeaders: {} })
+  return Promise.resolve({ 
+    uploadURL: 'http://localhost:8080/upload', 
+    requiredHeaders: {},
+    formFields: undefined 
+  })
 }
 
 /**
