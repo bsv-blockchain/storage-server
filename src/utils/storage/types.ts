@@ -12,6 +12,7 @@ export interface UploadParams {
 export interface UploadResponse {
   uploadURL: string
   requiredHeaders: Record<string, string>
+  formFields?: Record<string, string> // For S3 POST presigned URLs
 }
 
 export interface ObjectMetadata {

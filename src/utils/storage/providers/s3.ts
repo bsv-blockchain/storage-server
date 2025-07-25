@@ -8,6 +8,7 @@ import {
   CopyObjectCommand
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
 import {
   StorageProvider,
   UploadParams,
@@ -49,26 +50,31 @@ export class S3StorageProvider implements StorageProvider {
     // Calculate the custom time (e.g., expiry time plus 5 minutes)
     const customTime = new Date((expiryTime + 300) * 1000).toISOString()
     
-    // For S3, use simple presigned URL without metadata (two-phase approach)
-    // Metadata will be added later via the advertise endpoint
-    const command = new PutObjectCommand({
+    // Use S3 POST presigned URL with metadata (matches GCS behavior)
+    // This allows metadata to be included without signature issues
+    const { url: uploadURL, fields } = await createPresignedPost(this.s3Client, {
       Bucket: this.bucketName,
       Key: objectKey,
-      ContentLength: size
+      Conditions: [
+        ['content-length-range', size, size], // Exact size match
+        ['starts-with', '$x-amz-meta-uploaderidentitykey', ''], // Allow metadata
+        ['starts-with', '$x-amz-meta-customtime', ''] // Allow metadata
+      ],
+      Fields: {
+        'x-amz-meta-uploaderidentitykey': uploaderIdentityKey,
+        'x-amz-meta-customtime': customTime
+      },
+      Expires: 604800 // 1 week in seconds
     })
     
-    // Generate presigned URL
-    const uploadURL = await getSignedUrl(this.s3Client, command, {
-      expiresIn: 604800 // 1 week in seconds
-    })
-    
-    // Return simple presigned URL (S3 two-phase approach)
-    // Metadata will be added after upload via the advertise endpoint
+    // Return POST presigned URL with form fields
+    // Client must use multipart/form-data POST request
     return {
       uploadURL,
       requiredHeaders: {
-        'content-length': size.toString()
-      }
+        'content-type': 'multipart/form-data'
+      },
+      formFields: fields
     }
   }
 
