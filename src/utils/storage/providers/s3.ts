@@ -49,32 +49,28 @@ export class S3StorageProvider implements StorageProvider {
     // Calculate the custom time (e.g., expiry time plus 5 minutes)
     const customTime = new Date((expiryTime + 300) * 1000).toISOString()
     
-    // S3 metadata keys are lowercase and don't use x-amz-meta- prefix in the API
-    const metadata = {
-      uploaderidentitykey: uploaderIdentityKey,
-      customtime: customTime
-    }
+    // For S3, there are two approaches:
+    // 1. Simple approach: Generate URL without metadata, add metadata after upload
+    // 2. Complex approach: Include metadata in presigned URL (requires exact headers)
     
+    // Using approach 1 for simplicity - metadata will be added post-upload
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: objectKey,
-      ContentLength: size,
-      Metadata: metadata
+      ContentLength: size
     })
     
-    // Generate presigned URL with 1 week expiry
+    // Generate presigned URL
     const uploadURL = await getSignedUrl(this.s3Client, command, {
       expiresIn: 604800 // 1 week in seconds
     })
     
-    // For S3, the client needs to include these headers
-    // Note: S3 metadata headers use x-amz-meta- prefix when sent by client
+    // Store metadata for post-upload processing
+    // The advertise endpoint will handle setting metadata after upload
     return {
       uploadURL,
       requiredHeaders: {
-        'content-length': size.toString(),
-        'x-amz-meta-uploaderidentitykey': uploaderIdentityKey,
-        'x-amz-meta-customtime': customTime
+        'content-length': size.toString()
       }
     }
   }

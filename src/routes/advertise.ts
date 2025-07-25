@@ -50,7 +50,8 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
     const objectKey = `cdn/${req.body.objectIdentifier}`
     
     await storage.updateObjectMetadata(objectKey, {
-      customTime: new Date((expiryTime + 300) * 1000).toISOString()
+      customTime: new Date((expiryTime + 300) * 1000).toISOString(),
+      uploaderidentitykey: req.body.uploaderIdentityKey
     })
 
     res.status(200).json({ status: 'success' })
