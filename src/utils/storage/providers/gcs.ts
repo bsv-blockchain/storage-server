@@ -103,7 +103,7 @@ export class GCSStorageProvider implements StorageProvider {
     
     const [files, nextQuery] = await this.bucket.getFiles(options)
     
-    const objects: ObjectInfo[] = files.map(file => ({
+    const objects: ObjectInfo[] = files.map((file: any) => ({
       key: file.name,
       size: parseInt(file.metadata.size, 10),
       lastModified: new Date(file.metadata.updated || file.metadata.timeCreated)
