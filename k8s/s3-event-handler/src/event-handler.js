@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
-const { getURLForHash } = require('uhrp-url');
+const { StorageUtils } = require('@bsv/sdk');
 const { 
   S3Client, 
   GetObjectCommand,
@@ -127,7 +127,7 @@ async function processS3Object(bucketName, objectKey) {
     }
     
     const fileHash = hash.digest();
-    const uhrpUrl = getURLForHash(fileHash);
+    const uhrpUrl = StorageUtils.getURLForHash(fileHash);
     
     console.log('Generated UHRP URL:', uhrpUrl);
     

@@ -31,7 +31,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: event-handler
-        image: YOUR_ECR_URL/uhrp-event-handler:latest  # Will be replaced by CI/CD
+        image: ghcr.io/bsv-blockchain/storage-server-s3-notifier:latest  # Will be replaced by CI/CD
         imagePullPolicy: Always
         ports:
         - name: http
@@ -82,12 +82,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: uhrp-secrets
-              key: server-private-key
+              key: SERVER_PRIVATE_KEY
         - name: ADMIN_TOKEN
           valueFrom:
             secretKeyRef:
               name: uhrp-secrets
-              key: admin-token
+              key: ADMIN_TOKEN
         resources:
           requests:
             memory: "256Mi"
@@ -102,15 +102,6 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: http
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
-          successThreshold: 1
           failureThreshold: 3
         securityContext:
           allowPrivilegeEscalation: false
