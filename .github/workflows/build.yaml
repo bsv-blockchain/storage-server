@@ -53,6 +53,7 @@ jobs:
           context: . # Build context (root directory, adjust if Dockerfile is elsewhere)
           file: ./Dockerfile # Path to Dockerfile
           # push: ${{ github.event_name != 'pull_request' }} # Only push on push events, not PRs
+          push: true
           tags: |
             ghcr.io/${{ github.repository }}:${{ github.sha }}
             ghcr.io/${{ github.repository }}:${{ needs.get_tag.outputs.deployment_tag }}
@@ -63,6 +64,7 @@ jobs:
           context: ./k8s/s3-event-handler # Build context (root directory, adjust if Dockerfile is elsewhere)
           file: ./k8s/s3-event-handler/Dockerfile # Path to Dockerfile
           # push: ${{ github.event_name != 'pull_request' }} # Only push on push events, not PRs
+          push: true
           tags: |
             ghcr.io/${{ github.repository }}:${{ github.sha }}
             ghcr.io/${{ github.repository }}:${{ needs.get_tag.outputs.deployment_tag }}
