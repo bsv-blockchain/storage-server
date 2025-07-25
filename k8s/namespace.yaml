@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uhrp-storage
+  labels:
+    name: uhrp-storage
+    app.kubernetes.io/name: uhrp-storage
+    app.kubernetes.io/instance: production

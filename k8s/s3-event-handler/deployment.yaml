@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-handler
+  namespace: uhrp-server
+  labels:
+    app: event-handler
+    app.kubernetes.io/name: event-handler
+    app.kubernetes.io/component: event-processor
+    app.kubernetes.io/part-of: uhrp-server
+spec:
+  replicas: 2  # Multiple replicas for high availability
+  selector:
+    matchLabels:
+      app: event-handler
+  template:
+    metadata:
+      labels:
+        app: event-handler
+        app.kubernetes.io/name: event-handler
+        app.kubernetes.io/component: event-processor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: event-handler
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: event-handler
+        image: YOUR_ECR_URL/uhrp-event-handler:latest  # Will be replaced by CI/CD
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8081
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: storage-server-config
+              key: NODE_ENV
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: storage-server-config
+              key: AWS_REGION
+        - name: AWS_BUCKET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: storage-server-config
+              key: AWS_BUCKET_NAME
+        - name: SQS_QUEUE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: storage-server-config
+              key: SQS_QUEUE_URL
+        - name: SQS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: storage-server-config
+              key: SQS_REGION
+        - name: SQS_MAX_MESSAGES
+          valueFrom:
+            configMapKeyRef:
+              name: storage-server-config
+              key: SQS_MAX_MESSAGES
+        - name: SQS_WAIT_TIME_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: storage-server-config
+              key: SQS_WAIT_TIME_SECONDS
+        - name: HOSTING_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: storage-server-config
+              key: SERVER_URL
+        - name: SERVER_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: uhrp-secrets
+              key: server-private-key
+        - name: ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: uhrp-secrets
+              key: admin-token
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - event-handler
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: event-handler
+  namespace: uhrp-server
+  labels:
+    app: event-handler
+    app.kubernetes.io/name: event-handler
+    app.kubernetes.io/component: event-processor
+spec:
+  type: ClusterIP
+  selector:
+    app: event-handler
+  ports:
+  - name: http
+    port: 8081
+    targetPort: http
+    protocol: TCP
+  sessionAffinity: None

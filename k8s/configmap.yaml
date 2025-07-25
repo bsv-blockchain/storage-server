@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-server-config
+  namespace: uhrp-storage
+  labels:
+    app: storage-server
+    app.kubernetes.io/name: storage-server
+    app.kubernetes.io/component: configuration
+data:
+  NODE_ENV: "production"
+  HTTP_PORT: "8080"
+  AWS_REGION: "us-west-2"
+  AWS_BUCKET_NAME: "your-uhrp-bucket"  # Update this
+  SERVER_URL: "https://storage.example.com"  # Update this
+  CORS_ORIGIN: "*"
+  BSV_NETWORK: "mainnet"
+  WALLET_STORAGE_URL: "https://storage.babbage.systems"
+  PER_BYTE_PRICE: "0.00001"
+  BASE_PRICE: "1000"
+  MIN_HOSTING_MINUTES: "15"
+  # S3 Event Handler Config
+  SQS_QUEUE_URL: "https://sqs.us-west-2.amazonaws.com/YOUR_ACCOUNT/uhrp-s3-events"  # Update this
+  SQS_REGION: "us-west-2"
+  SQS_MAX_MESSAGES: "10"
+  SQS_WAIT_TIME_SECONDS: "20"

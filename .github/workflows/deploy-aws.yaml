@@ -1,0 +1,139 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - master
+      - production
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  ECS_SERVICE: ${{ github.ref_name == 'production' && 'prod-uhrp-storage-service' || 'staging-uhrp-storage-service' }}
+  ECS_CLUSTER: ${{ github.ref_name == 'production' && 'prod-uhrp-cluster' || 'staging-uhrp-cluster' }}
+  TASK_DEFINITION_FAMILY: uhrp-storage-server
+  LAMBDA_FUNCTION: ${{ github.ref_name == 'production' && 'prod-uhrp-notifier' || 'staging-uhrp-notifier' }}
+
+jobs:
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
+      run: |
+        # Build the Docker image
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest-${{ github.ref_name }}
+        
+        # Push both tags to ECR
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest-${{ github.ref_name }}
+        
+        # Output the image URI
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Download current task definition
+      run: |
+        aws ecs describe-task-definition \
+          --task-definition ${{ env.TASK_DEFINITION_FAMILY }} \
+          --query taskDefinition > task-definition.json
+        
+        # Remove fields that shouldn't be in the new definition
+        jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' task-definition.json > task-definition-clean.json
+        mv task-definition-clean.json task-definition.json
+
+    - name: Update task definition with new image
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition.json
+        container-name: uhrp-storage
+        image: ${{ steps.build-image.outputs.image }}
+        environment-variables: |
+          NODE_ENV=${{ github.ref_name == 'production' && 'production' || 'staging' }}
+          AWS_BUCKET_NAME=${{ github.ref_name == 'production' && secrets.PROD_AWS_BUCKET_NAME || secrets.STAGING_AWS_BUCKET_NAME }}
+          SERVER_URL=${{ github.ref_name == 'production' && secrets.PROD_SERVER_URL || secrets.STAGING_SERVER_URL }}
+          CORS_ORIGIN=${{ github.ref_name == 'production' && secrets.PROD_CORS_ORIGIN || secrets.STAGING_CORS_ORIGIN }}
+          PER_BYTE_PRICE=${{ github.ref_name == 'production' && secrets.PROD_PER_BYTE_PRICE || secrets.STAGING_PER_BYTE_PRICE }}
+          BASE_PRICE=${{ github.ref_name == 'production' && secrets.PROD_BASE_PRICE || secrets.STAGING_BASE_PRICE }}
+          BSV_NETWORK=${{ github.ref_name == 'production' && 'mainnet' || 'testnet' }}
+          MIN_HOSTING_MINUTES=${{ github.ref_name == 'production' && secrets.PROD_MIN_HOSTING_MINUTES || secrets.STAGING_MIN_HOSTING_MINUTES }}
+          WALLET_STORAGE_URL=${{ github.ref_name == 'production' && secrets.PROD_WALLET_STORAGE_URL || secrets.STAGING_WALLET_STORAGE_URL }}
+
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    - name: Package and deploy Lambda function
+      run: |
+        # Package the notifier
+        cd notifier
+        npm ci --production
+        zip -r ../notifier.zip .
+        cd ..
+        
+        # Update Lambda function code
+        aws lambda update-function-code \
+          --function-name ${{ env.LAMBDA_FUNCTION }} \
+          --zip-file fileb://notifier.zip
+        
+        # Update Lambda environment variables
+        aws lambda update-function-configuration \
+          --function-name ${{ env.LAMBDA_FUNCTION }} \
+          --environment Variables="{
+            NODE_ENV=${{ github.ref_name == 'production' && 'production' || 'staging' }},
+            SERVER_PRIVATE_KEY=${{ github.ref_name == 'production' && secrets.PROD_SERVER_PRIVATE_KEY || secrets.STAGING_SERVER_PRIVATE_KEY }},
+            BSV_NETWORK=${{ github.ref_name == 'production' && 'mainnet' || 'testnet' }},
+            AWS_BUCKET_NAME=${{ github.ref_name == 'production' && secrets.PROD_AWS_BUCKET_NAME || secrets.STAGING_AWS_BUCKET_NAME }}
+          }"
+        
+        # Wait for configuration update to complete
+        aws lambda wait function-updated \
+          --function-name ${{ env.LAMBDA_FUNCTION }}
+
+    - name: Verify deployment
+      run: |
+        echo "🚀 Deployment completed!"
+        echo "ECS Service: ${{ env.ECS_SERVICE }}"
+        echo "Lambda Function: ${{ env.LAMBDA_FUNCTION }}"
+        echo "Image: ${{ steps.build-image.outputs.image }}"
+        
+        # Get service info
+        aws ecs describe-services \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ env.ECS_SERVICE }} \
+          --query 'services[0].{desiredCount:desiredCount,runningCount:runningCount,pendingCount:pendingCount}' \
+          --output table
+
+    - name: Send deployment notification
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Deployment to ${{ github.ref_name }} succeeded"
+        else
+          echo "❌ Deployment to ${{ github.ref_name }} failed"
+        fi

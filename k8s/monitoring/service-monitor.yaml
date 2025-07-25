@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: storage-server
+  namespace: uhrp-storage
+  labels:
+    app: storage-server
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: storage-server
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: event-handler
+  namespace: uhrp-storage
+  labels:
+    app: event-handler
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: event-handler
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s

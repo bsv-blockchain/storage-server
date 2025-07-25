@@ -1,0 +1,181 @@
+name: Deploy to EKS
+
+on:
+  push:
+    branches:
+      - master
+      - production
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+  NAMESPACE: uhrp-storage
+  
+jobs:
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build and push storage server image
+      id: build-storage-server
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
+      run: |
+        # Build and push storage server
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest-${{ github.ref_name }}
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest-${{ github.ref_name }}
+        echo "storage_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Build and push event handler image
+      id: build-event-handler
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
+      run: |
+        # Build and push event handler
+        cd k8s/s3-event-handler
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY-event-handler:$IMAGE_TAG .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY-event-handler:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY-event-handler:latest-${{ github.ref_name }}
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY-event-handler:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY-event-handler:latest-${{ github.ref_name }}
+        echo "event_handler_image=$ECR_REGISTRY/$ECR_REPOSITORY-event-handler:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Setup kubectl
+      uses: aws-actions/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+    - name: Create namespace if not exists
+      run: |
+        kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Update ConfigMap
+      run: |
+        # Update configmap with environment-specific values
+        kubectl apply -f k8s/configmap.yaml
+        
+        # Patch configmap with dynamic values
+        kubectl patch configmap storage-server-config -n ${{ env.NAMESPACE }} --type merge -p '
+        {
+          "data": {
+            "NODE_ENV": "${{ github.ref_name == 'production' && 'production' || 'staging' }}",
+            "AWS_BUCKET_NAME": "${{ github.ref_name == 'production' && secrets.PROD_AWS_BUCKET_NAME || secrets.STAGING_AWS_BUCKET_NAME }}",
+            "SERVER_URL": "${{ github.ref_name == 'production' && secrets.PROD_SERVER_URL || secrets.STAGING_SERVER_URL }}",
+            "CORS_ORIGIN": "${{ github.ref_name == 'production' && secrets.PROD_CORS_ORIGIN || secrets.STAGING_CORS_ORIGIN }}",
+            "BSV_NETWORK": "${{ github.ref_name == 'production' && 'mainnet' || 'testnet' }}",
+            "SQS_QUEUE_URL": "${{ github.ref_name == 'production' && secrets.PROD_SQS_QUEUE_URL || secrets.STAGING_SQS_QUEUE_URL }}"
+          }
+        }'
+
+    - name: Update Secrets
+      run: |
+        # Check if secret exists, update or create
+        if kubectl get secret uhrp-secrets -n ${{ env.NAMESPACE }} >/dev/null 2>&1; then
+          echo "Updating existing secret"
+        else
+          echo "Creating new secret"
+          kubectl create secret generic uhrp-secrets \
+            --namespace=${{ env.NAMESPACE }} \
+            --from-literal=server-private-key="${{ github.ref_name == 'production' && secrets.PROD_SERVER_PRIVATE_KEY || secrets.STAGING_SERVER_PRIVATE_KEY }}" \
+            --from-literal=admin-token="${{ github.ref_name == 'production' && secrets.PROD_ADMIN_TOKEN || secrets.STAGING_ADMIN_TOKEN }}" \
+            --from-literal=bugsnag-api-key="${{ github.ref_name == 'production' && secrets.PROD_BUGSNAG_API_KEY || secrets.STAGING_BUGSNAG_API_KEY }}"
+        fi
+
+    - name: Deploy storage server
+      run: |
+        # Update deployment with new image
+        kubectl set image deployment/storage-server \
+          storage-server=${{ steps.build-storage-server.outputs.storage_image }} \
+          -n ${{ env.NAMESPACE }}
+        
+        # Apply other manifests
+        kubectl apply -f k8s/service.yaml
+        kubectl apply -f k8s/ingress.yaml
+        kubectl apply -f k8s/hpa.yaml
+
+    - name: Deploy event handler
+      run: |
+        # Update deployment with new image
+        if kubectl get deployment event-handler -n ${{ env.NAMESPACE }} >/dev/null 2>&1; then
+          kubectl set image deployment/event-handler \
+            event-handler=${{ steps.build-event-handler.outputs.event_handler_image }} \
+            -n ${{ env.NAMESPACE }}
+        else
+          # First deployment - apply the manifest then update image
+          kubectl apply -f k8s/s3-event-handler/deployment.yaml
+          kubectl set image deployment/event-handler \
+            event-handler=${{ steps.build-event-handler.outputs.event_handler_image }} \
+            -n ${{ env.NAMESPACE }}
+        fi
+
+    - name: Wait for rollout
+      run: |
+        kubectl rollout status deployment/storage-server -n ${{ env.NAMESPACE }} --timeout=300s
+        kubectl rollout status deployment/event-handler -n ${{ env.NAMESPACE }} --timeout=300s
+
+    - name: Verify deployment
+      run: |
+        echo "🚀 Deployment completed!"
+        echo "Storage Server Image: ${{ steps.build-storage-server.outputs.storage_image }}"
+        echo "Event Handler Image: ${{ steps.build-event-handler.outputs.event_handler_image }}"
+        
+        # Get deployment status
+        kubectl get deployments -n ${{ env.NAMESPACE }}
+        kubectl get pods -n ${{ env.NAMESPACE }}
+        kubectl get ingress -n ${{ env.NAMESPACE }}
+        
+        # Get ingress URL
+        INGRESS_URL=$(kubectl get ingress storage-server-ingress -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' || echo "Pending...")
+        echo "Ingress URL: $INGRESS_URL"
+
+    - name: Run smoke tests
+      run: |
+        # Wait for ingress to be ready
+        echo "Waiting for ingress to be ready..."
+        for i in {1..30}; do
+          INGRESS_URL=$(kubectl get ingress storage-server-ingress -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+          if [ -n "$INGRESS_URL" ] && [ "$INGRESS_URL" != "Pending..." ]; then
+            echo "Ingress ready at: $INGRESS_URL"
+            break
+          fi
+          echo "Waiting for ingress... ($i/30)"
+          sleep 10
+        done
+        
+        # Basic health check
+        if [ -n "$INGRESS_URL" ]; then
+          curl -f -s -o /dev/null -w "%{http_code}" "http://$INGRESS_URL/" || echo "Health check pending..."
+        fi
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Successfully deployed to ${{ github.ref_name }} environment"
+        else
+          echo "❌ Deployment to ${{ github.ref_name }} failed"
+        fi

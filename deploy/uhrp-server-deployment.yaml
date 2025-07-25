@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: uhrp-server
+  name: uhrp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: uhrp-server
+  template:
+    metadata:
+      labels:
+        app: uhrp-server
+    spec:
+      containers:
+        - args:
+            - npm
+            - run
+            - dev
+          env:
+            - name: ADMIN_TOKEN
+              value: admin-token
+            - name: GCP_BUCKET_NAME
+              value: staging-uhrp
+            - name: GCP_PROJECT_ID
+              value: babbage-uhrp
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /app/service-account.json
+            - name: HOSTING_DOMAIN
+              value: http://localhost:8080
+            - name: HTTP_PORT
+              value: "8080"
+            - name: MIGRATE_KEY
+              value: my-great-key
+            - name: MIN_HOSTING_MINUTES
+              value: "15"
+            - name: NODE_ENV
+              value: development
+            - name: PRICE_PER_GB_MO
+              value: "0.03"
+            - name: SERVER_PRIVATE_KEY
+              value: 53a6156d87fd51d00095e82b59d20354b31786206462dbc8bbf5aeaa3a2a9309
+            - name: SERVER_XPRIV
+              value: xprv9s21ZrQH143K3GN3VANh6bt72CgqhysD35WrbZWq7zJMg9Jegv7qPhgCy1To8PHW8fJoa4EDLCx73FK8Ljfg64mW9XK9g13xkMwZKQPWZ9Y
+            - name: UHRP_HOST_PRIVATE_KEY
+              value: 5KKGHf1dZpJ1L4aQTGCrVL4q3y5iwbcf9YcWS3oXynrWjaxS2LD
+            - name: WALLET_STORAGE_URL
+              value: https://staging-storage.babbage.systems
+          image: uhrp-server
+          name: uhrp-server
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+            - containerPort: 9229
+              protocol: TCP
+      hostname: uhrp-server
+      restartPolicy: Always
