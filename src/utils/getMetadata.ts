@@ -1,11 +1,8 @@
 // /utils/getMetadata.ts
-import { Storage } from '@google-cloud/storage'
 import { getWallet } from './walletSingleton'
 import upload from '../routes/upload'
 import { Utils } from '@bsv/sdk'
-
-const storage = new Storage()
-const { GCP_BUCKET_NAME } = process.env
+import { getStorageProvider } from './storage'
 
 interface FileMetadata {
   objectIdentifier: string
@@ -60,21 +57,16 @@ export async function getMetadata(uhrpUrl: string, uploaderIdentityKey: string, 
     throw new Error(`Advertisement for uhrpUrl: ${uhrpUrl} has expired`)
   }
 
-  // Fetch GCS metadata
-  const file = storage.bucket(GCP_BUCKET_NAME!).file(`cdn/${objectIdentifier}`)
-  const [gcsMetadata] = await file.getMetadata()
-
-  const {
-    name,
-    size,
-    contentType = '',
-  } = gcsMetadata
+  // Fetch metadata from storage provider
+  const storage = getStorageProvider()
+  const objectKey = `cdn/${objectIdentifier}`
+  const metadata = await storage.getObjectMetadata(objectKey)
 
   return {
     objectIdentifier,
-    name,
-    size,
-    contentType,
+    name: objectKey,
+    size: metadata.size.toString(),
+    contentType: metadata.contentType,
     expiryTime: maxpiry
   }
 }

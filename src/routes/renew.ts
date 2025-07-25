@@ -1,12 +1,10 @@
 import { Request, Response } from 'express'
-import { Storage } from '@google-cloud/storage'
 import getPriceForFile from '../utils/getPriceForFile'
 import { getWallet } from '../utils/walletSingleton'
 import { LockingScript, PrivateKey, PushDrop, SHIPBroadcaster, StorageUtils, TopicBroadcaster, Transaction, UnlockingScript, Utils } from '@bsv/sdk'
 import { getMetadata } from '../utils/getMetadata'
+import { getStorageProvider } from '../utils/storage'
 
-const storage = new Storage()
-const GCP_BUCKET_NAME = process.env.GCP_BUCKET_NAME as string
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY as string
 const BSV_NETWORK = process.env.BSV_NETWORK as 'mainnet' | 'testnet'
 
@@ -208,9 +206,10 @@ const renewHandler = async (req: RenewRequest, res: Response<RenewResponse>) => 
 
     await broadcaster.broadcast(Transaction.fromAtomicBEEF(tx))
 
-    // Setting the new expiry time in the actual database
-    await storage.bucket(GCP_BUCKET_NAME).file(`cdn/${objectIdentifier}`)
-      .setMetadata({ customTime: newCustomTimeIso })
+    // Setting the new expiry time in the storage provider
+    const storageProvider = getStorageProvider()
+    const objectKey = `cdn/${objectIdentifier}`
+    await storageProvider.updateObjectMetadata(objectKey, { customTime: newCustomTimeIso })
 
     return res.status(200).json({
       status: 'success',
