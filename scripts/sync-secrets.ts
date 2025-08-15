@@ -11,28 +11,35 @@
  *   ts-node scripts/sync-secrets.ts --repo your-org/your-repo --env staging --create-env
  *   ts-node scripts/sync-secrets.ts --repo your-org/your-repo --env prod --create-env
  *
- * Reads from: secrets/<env>.env.local (KEY=VALUE lines)
+ * Reads from: secrets/<env>.env (KEY=VALUE lines)
  * Writes: Environment Secrets named STAGING_KEY or PROD_KEY (matching your deploy.yaml)
  */
 
-import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdtempSync } from "node:fs";
+import { execFileSync, spawnSync, execSync } from "node:child_process";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  mkdtempSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 type EnvName = "staging" | "prod";
 
 const args = process.argv.slice(2);
-const repo = getFlag("--repo");
+const repo = getFlag("--repo") || getRepoFromGit();
 const envName = (getFlag("--env") as EnvName) || "staging";
 const createEnv = hasFlag("--create-env");
 
 if (!repo) die("Missing --repo owner/name");
-if (!["staging", "prod"].includes(envName)) die("--env must be staging or prod");
+if (!["staging", "prod"].includes(envName))
+  die("--env must be staging or prod");
 
 ensureGhAuth();
 
-const secretsFile = join(process.cwd(), "secrets", `${envName}.env.local`);
+const secretsFile = join(process.cwd(), "secrets", `${envName}.env`);
 if (!existsSync(secretsFile)) {
   die(`Secrets file not found: ${secretsFile}`);
 }
@@ -45,13 +52,11 @@ const prefix = envName === "prod" ? "PROD_" : "STAGING_";
 if (createEnv) ensureEnvironment(repo, envLabel);
 
 const keys = Object.keys(kv);
-console.log(`Syncing ${keys.length} secrets to ${repo} environment=${envLabel} with prefix=${prefix}`);
+console.log(
+  `Syncing ${keys.length} secrets to ${repo} environment=${envLabel} with prefix=${prefix}`
+);
 
-for (const [key, value] of Object.entries(kv)) {
-  // Name as PROD_KEY or STAGING_KEY
-  const secretName = `${prefix}${key}`;
-  setGhSecret(repo, secretName, value, envLabel);
-}
+bulkSetSecrets(repo, envLabel, prefix, kv);
 
 console.log(`Done. Pushed ${keys.length} secrets to ${repo} (${envLabel})`);
 
@@ -61,11 +66,26 @@ function ensureGhAuth() {
 }
 
 function ensureEnvironment(repository: string, env: string) {
-  const check = spawnSync("gh", ["api", `repos/${repository}/environments/${env}`], { stdio: "ignore" });
-  if (check.status === 0) return;
+  // 1) Check if the environment exists
+  const check = spawnSync(
+    "gh",
+    ["api", `repos/${repository}/environments/${encodeURIComponent(env)}`],
+    { stdio: "ignore" }
+  );
+  if (check.status === 0) return; // already exists
 
   console.log(`Creating environment '${env}' in ${repository}...`);
-  const res = spawnSync("gh", ["api", `repos/${repository}/environments`, "--method", "PUT", "-f", `name=${env}`], { stdio: "inherit" });
+  // 2) Create it (no body needed for basic create)
+  const res = spawnSync(
+    "gh",
+    [
+      "api",
+      "-X",
+      "PUT",
+      `repos/${repository}/environments/${encodeURIComponent(env)}`,
+    ],
+    { stdio: "inherit" }
+  );
   if (res.status !== 0) die(`Failed to create environment '${env}'.`);
 }
 
@@ -76,16 +96,33 @@ function writeTemp(content: string): string {
   return p;
 }
 
-function setGhSecret(repository: string, name: string, value: string, env: string) {
+function setGhSecret(
+  repository: string,
+  name: string,
+  value: string,
+  env: string
+) {
   // use a temp file to support multiline content safely
   const tmpPath = writeTemp(value);
   try {
-    const args = ["secret", "set", name, "-R", repository, "--body-file", tmpPath, "-e", env];
+    const args = [
+      "secret",
+      "set",
+      name,
+      "-R",
+      repository,
+      "--body-file",
+      tmpPath,
+      "-e",
+      env,
+    ];
     execFileSync("gh", args, { stdio: "inherit" });
   } catch (e) {
     die(`Failed to set secret ${name} for env ${env}.`);
   } finally {
-    try { unlinkSync(tmpPath); } catch {}
+    try {
+      unlinkSync(tmpPath);
+    } catch {}
   }
 }
 
@@ -115,4 +152,40 @@ function hasFlag(name: string): boolean {
 function die(msg: string): never {
   console.error(`✖ ${msg}`);
   process.exit(1);
+}
+
+function getRepoFromGit(): string {
+  try {
+    const url = execSync("git config --get remote.origin.url")
+      .toString()
+      .trim();
+    // handles git@github.com:org/repo.git or https://github.com/org/repo.git
+    const match = url.match(/[:/]([^/]+\/[^/]+?)(?:\.git)?$/);
+    if (match) return match[1];
+  } catch {}
+  throw new Error(
+    "Unable to determine repo from git config. Pass --repo instead."
+  );
+}
+
+function bulkSetSecrets(
+  repository: string,
+  env: string,
+  prefix: "PROD_" | "STAGING_",
+  kv: Record<string, string>
+) {
+  const tmp = join(process.cwd(), `.tmp_${env}_secrets_${Date.now()}.env`);
+  const lines = Object.entries(kv).map(
+    ([k, v]) => `${prefix}${k}=${v.replace(/\n/g, "\\n")}`
+  );
+  writeFileSync(tmp, lines.join("\n"));
+  const res = spawnSync(
+    "gh",
+    ["secret", "set", "-R", repository, "-e", env, "-f", tmp],
+    { stdio: "inherit" }
+  );
+  try {
+    unlinkSync(tmp);
+  } catch {}
+  if (res.status !== 0) die(`Bulk secret set failed for env ${env}`);
 }

@@ -32,7 +32,9 @@
     "build": "tsc",
     "test": "jest",
     "test:watch": "jest --watch",
-    "lint": "standard --fix ."
+    "lint": "standard --fix .",
+    "secrets:staging": "ts-node scripts/sync-secrets.ts --env staging --create-env",
+    "secrets:prod": "ts-node scripts/sync-secrets.ts --env prod --create-env"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",
