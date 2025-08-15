@@ -16,6 +16,7 @@ jobs:
   build:
     name: Deploy
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'production' && 'production' || 'staging' }}
     steps:
       - name: Debug secrets presence (production)
         if: ${{ github.ref_name == 'production' }}
