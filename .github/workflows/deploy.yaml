@@ -12,6 +12,8 @@ env:
   GOOGLE_PROJECT_ID: ${{ github.ref_name == 'production' && secrets.PROD_GOOGLE_PROJECT_ID || secrets.STAGING_GOOGLE_PROJECT_ID }}
   GCR_IMAGE_NAME: ${{ github.ref_name == 'production' && secrets.PROD_GCR_IMAGE_NAME || secrets.STAGING_GCR_IMAGE_NAME }}
   GCP_BUCKET_NAME: ${{ github.ref_name == 'production' && secrets.PROD_GCP_BUCKET_NAME || secrets.STAGING_GCP_BUCKET_NAME }}
+  DOCKERHUB_USERNAME: ${{ github.ref_name == 'production' && secrets.PROD_DOCKERHUB_USERNAME || secrets.STAGING_DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ github.ref_name == 'production' && secrets.PROD_DOCKERHUB_TOKEN || secrets.STAGING_DOCKERHUB_TOKEN }}
 jobs:
   build:
     name: Deploy
@@ -61,11 +63,11 @@ jobs:
           echo "HTTP_PORT set? ${{ secrets.STAGING_HTTP_PORT != '' }}"
 
       - name: Login to Docker Hub
-        if: ${{ (github.ref_name == 'production' && secrets.PROD_DOCKERHUB_USERNAME != '' && secrets.PROD_DOCKERHUB_TOKEN != '') || (github.ref_name != 'production' && secrets.STAGING_DOCKERHUB_USERNAME != '' && secrets.STAGING_DOCKERHUB_TOKEN != '') }}
+        if: ${{ env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
         uses: docker/login-action@v3
         with:
-          username: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_DOCKERHUB_USERNAME || secrets.STAGING_DOCKERHUB_USERNAME }}
-          password: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_DOCKERHUB_TOKEN || secrets.STAGING_DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       - uses: actions/checkout@v2
       - uses: RafikFarhad/push-to-gcr-github-action@v5-beta
