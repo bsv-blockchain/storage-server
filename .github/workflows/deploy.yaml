@@ -61,6 +61,7 @@ jobs:
           echo "HTTP_PORT set? ${{ secrets.STAGING_HTTP_PORT != '' }}"
 
       - name: Login to Docker Hub
+        if: ${{ (github.ref_name == 'production' && secrets.PROD_DOCKERHUB_USERNAME != '' && secrets.PROD_DOCKERHUB_TOKEN != '') || (github.ref_name != 'production' && secrets.STAGING_DOCKERHUB_USERNAME != '' && secrets.STAGING_DOCKERHUB_TOKEN != '') }}
         uses: docker/login-action@v3
         with:
           username: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_DOCKERHUB_USERNAME || secrets.STAGING_DOCKERHUB_USERNAME }}
