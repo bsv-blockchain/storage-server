@@ -14,7 +14,7 @@
     "@bsv/auth-express-middleware": "^1.2.2",
     "@bsv/payment-express-middleware": "^1.2.3",
     "@bsv/sdk": "^1.6.20",
-    "@bsv/wallet-toolbox": "^1.5.19",
+    "@bsv/wallet-toolbox": "^1.5.21",
     "@bsv/wallet-toolbox-client": "^1.5.19",
     "@bugsnag/js": "^7.14.1",
     "@bugsnag/plugin-express": "^7.14.0",
