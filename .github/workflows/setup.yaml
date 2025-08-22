@@ -120,15 +120,39 @@ jobs:
       - name: Create GCS bucket (idempotent)
         if: env.BUCKET_NAME != ''
         run: |
-          if ! gcloud storage buckets describe "gs://$BUCKET_NAME" >/dev/null 2>&1; then
-            gcloud storage buckets create "gs://$BUCKET_NAME" --location="${{ env.REGION }}" --uniform-bucket-level-access
-          else
+          # Check if the bucket is accessible in this project; if not, attempt to create it.
+          if gcloud storage buckets describe "gs://$BUCKET_NAME" >/dev/null 2>&1; then
             echo "Bucket gs://$BUCKET_NAME already exists."
+          else
+            echo "Creating bucket gs://$BUCKET_NAME in project $PROJECT_ID, region ${{ env.REGION }}"
+            # Temporarily disable 'exit on error' to inspect the create failure and print a clearer message.
+            set +e
+            CREATE_OUT=$(gcloud storage buckets create "gs://$BUCKET_NAME" \
+              --project="$PROJECT_ID" \
+              --location="${{ env.REGION }}" \
+              --uniform-bucket-level-access 2>&1)
+            CREATE_RC=$?
+            set -e
+            if [ "$CREATE_RC" -ne 0 ]; then
+              echo "$CREATE_OUT"
+              if echo "$CREATE_OUT" | grep -qiE 'HTTPError 409|requested bucket name is not available|already exists'; then
+                echo "::error::GCS bucket name '$BUCKET_NAME' is already taken globally and not accessible in project '$PROJECT_ID'. Choose a unique name (e.g., ${PROJECT_ID}-${ENV_NAME}-uhrp-<suffix>) and update the ${{ github.event.inputs.env == 'production' && 'PROD_GCP_BUCKET_NAME' || 'STAGING_GCP_BUCKET_NAME' }} secret in the '${{ github.event.inputs.env }}' environment."
+                exit 1
+              else
+                echo "::error::Failed to create bucket 'gs://$BUCKET_NAME' (exit $CREATE_RC). See logs above for details."
+                exit "$CREATE_RC"
+              fi
+            fi
           fi
+          # Apply CORS only if the bucket is accessible in this project
           if [ -f bucket-cors-config.json ]; then
-            gsutil cors set bucket-cors-config.json "gs://$BUCKET_NAME"
+            if gcloud storage buckets describe "gs://$BUCKET_NAME" >/dev/null 2>&1; then
+              gsutil cors set bucket-cors-config.json "gs://$BUCKET_NAME"
+            else
+              echo "Skipping CORS: bucket gs://$BUCKET_NAME is not accessible in project $PROJECT_ID."
+            fi
           fi
-
+  
       # ----- eventarc identity + IAM plumbing -----
       - name: Ensure Eventarc service identity exists
         run: |
