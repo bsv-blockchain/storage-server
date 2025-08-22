@@ -22,7 +22,11 @@ permissions:
 env:
   ENV_NAME: ${{ github.event.inputs.env }}           # staging | production
   REGION:   ${{ github.event.inputs.region }}        # e.g., us-west1
-  PREFIX:   ${{ github.event.inputs.env == 'production' && 'PROD' || 'STAGING' }}
+  GOOGLE_PROJECT_ID: ${{ github.event.inputs.env == 'production' && secrets.PROD_GOOGLE_PROJECT_ID || secrets.STAGING_GOOGLE_PROJECT_ID }}
+  GCR_HOST: ${{ github.event.inputs.env== 'production' && secrets.PROD_GCR_HOST || secrets.STAGING_GCR_HOST }}
+  GCR_IMAGE_NAME: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCR_IMAGE_NAME || secrets.STAGING_GCR_IMAGE_NAME }}
+  GCP_BUCKET_NAME: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCP_BUCKET_NAME || secrets.STAGING_GCP_BUCKET_NAME }}
+
 
 jobs:
   setup:
@@ -35,10 +39,10 @@ jobs:
       # ----- load env-scoped config secrets (unchanged from your deploy) -----
       - name: Load environment config
         run: |
-          echo "PROJECT_ID=${{ env.PREFIX == 'PROD' && secrets.PROD_GOOGLE_PROJECT_ID || secrets.STAGING_GOOGLE_PROJECT_ID }}" >> $GITHUB_ENV
-          echo "BUCKET_NAME=${{ env.PREFIX == 'PROD' && secrets.PROD_GCP_BUCKET_NAME || secrets.STAGING_GCP_BUCKET_NAME }}" >> $GITHUB_ENV
-          echo "GCR_HOST=${{ env.PREFIX == 'PROD' && secrets.PROD_GCR_HOST' || secrets.STAGING_GCR_HOST }}" >> $GITHUB_ENV
-          echo "IMAGE_NAME=${{ env.PREFIX == 'PROD' && secrets.PROD_GCR_IMAGE_NAME' || secrets.STAGING_GCR_IMAGE_NAME }}" >> $GITHUB_ENV
+          echo "PROJECT_ID=${{ env.GOOGLE_PROJECT_ID }}" >> $GITHUB_ENV
+          echo "BUCKET_NAME=${{ env.GCP_BUCKET_NAME }}" >> $GITHUB_ENV
+          echo "GCR_HOST=${{ env.GCR_HOST }}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${{ env.GCR_IMAGE_NAME }}" >> $GITHUB_ENV
         
       # ----- authenticate with bootstrap owner key -----
       - name: Write bootstrap key
