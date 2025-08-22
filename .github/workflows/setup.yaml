@@ -131,7 +131,7 @@ jobs:
               --project="$PROJECT_ID" \
               --location="${{ env.REGION }}" \
               --uniform-bucket-level-access 2>&1) \
-              --default-storage-class=AUTO_CLASS \
+              --autoclass \
               --soft-delete-duration=0
             CREATE_RC=$?
             set -e
