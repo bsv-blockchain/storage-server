@@ -15,7 +15,7 @@ on:
         default: us-west1
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
   actions: write
 
@@ -32,62 +32,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install GitHub CLI
-        uses: cli/gh-actions/setup-gh@v2
-        with:
-          version: latest
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          install_components: 'beta'
-
       # ----- load env-scoped config secrets (unchanged from your deploy) -----
       - name: Load environment config
         run: |
-          echo "PROJECT_ID=${{ secrets[format('{0}_GOOGLE_PROJECT_ID', env.PREFIX)] }}" >> $GITHUB_ENV
-          echo "BUCKET_NAME=${{ secrets[format('{0}_GCP_BUCKET_NAME', env.PREFIX)] }}" >> $GITHUB_ENV
-          echo "GCR_HOST=${{ secrets[format('{0}_GCR_HOST', env.PREFIX)] }}" >> $GITHUB_ENV
-          echo "IMAGE_NAME=${{ secrets[format('{0}_GCR_IMAGE_NAME', env.PREFIX)] }}" >> $GITHUB_ENV
-
+          echo "PROJECT_ID=${{ env.PREFIX == 'PROD' && secrets.PROD_GOOGLE_PROJECT_ID || secrets.STAGING_GOOGLE_PROJECT_ID }}" >> $GITHUB_ENV
+          echo "BUCKET_NAME=${{ env.PREFIX == 'PROD' && secrets.PROD_GCP_BUCKET_NAME || secrets.STAGING_GCP_BUCKET_NAME }}" >> $GITHUB_ENV
+          echo "GCR_HOST=${{ env.PREFIX == 'PROD' && secrets.PROD_GCR_HOST' || secrets.STAGING_GCR_HOST }}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${{ env.PREFIX == 'PROD' && secrets.PROD_GCR_IMAGE_NAME' || secrets.STAGING_GCR_IMAGE_NAME }}" >> $GITHUB_ENV
+        
       # ----- authenticate with bootstrap owner key -----
-      - name: Select bootstrap key (per-env fallback)
-        id: bootstrap
+      - name: Write bootstrap key
         run: |
-          KEY="${{ secrets[format('{0}_GCP_BOOTSTRAP_KEY', env.PREFIX)] }}"
-          if [ -z "$KEY" ]; then
-            KEY="${{ secrets.GCP_BOOTSTRAP_KEY }}"
-          fi
-          if [ -z "$KEY" ]; then
-            echo 'Missing GCP bootstrap key. Provide GCP_BOOTSTRAP_KEY or {STAGING,PROD}_GCP_BOOTSTRAP_KEY.' >&2
-            exit 1
-          fi
-          printf 'json<<EOF\n%s\nEOF\n' "$KEY" >> $GITHUB_OUTPUT
+          echo '${{ secrets.GCP_BOOTSTRAP_KEY }}' > $RUNNER_TEMP/bootstrap.json
 
       - name: Auth to GCP (bootstrap)
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ steps.bootstrap.outputs.json }}
-
-      - name: Select token for GitHub API
-        id: pick-gh-token
-        run: |
-          if [ -n "${{ secrets.GH_ADMIN_TOKEN }}" ]; then
-            echo "Using GH_ADMIN_TOKEN"
-            echo "GH_TOKEN=${{ secrets.GH_ADMIN_TOKEN }}" >> $GITHUB_ENV
-          else
-            echo "Using default github.token"
-            echo "GH_TOKEN=${{ github.token }}" >> $GITHUB_ENV
-          fi
+          credentials_json: ${{ secrets.GCP_BOOTSTRAP_KEY }}
 
       - name: Ensure GitHub environments exist
         env:
-          GH_TOKEN: ${{ env.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for ENV in staging production; do
-            echo "Ensuring environment $ENV exists..."
-            gh api -X PUT "repos/${{ github.repository }}/environments/$ENV" >/dev/null || true
-          done
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/environments/staging" -f name=staging >/dev/null
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/environments/production" -f name=production >/dev/null
 
       - name: Set gcloud project
         run: |
@@ -229,7 +197,7 @@ jobs:
 
       - name: Set environment secrets (shared) for staging & production
         env:
-          GH_TOKEN: ${{ env.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for TARGET_ENV in staging production; do
             echo "Setting secrets for env: $TARGET_ENV"
