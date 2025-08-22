@@ -15,26 +15,30 @@ on:
         default: us-west1
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
   actions: write
 
 env:
   ENV_NAME: ${{ github.event.inputs.env }}           # staging | production
   REGION:   ${{ github.event.inputs.region }}        # e.g., us-west1
-  GOOGLE_PROJECT_ID: ${{ github.event.inputs.env == 'production' && secrets.PROD_GOOGLE_PROJECT_ID || secrets.STAGING_GOOGLE_PROJECT_ID }}
-  GCR_HOST: ${{ github.event.inputs.env== 'production' && secrets.PROD_GCR_HOST || secrets.STAGING_GCR_HOST }}
-  GCR_IMAGE_NAME: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCR_IMAGE_NAME || secrets.STAGING_GCR_IMAGE_NAME }}
-  GCP_BUCKET_NAME: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCP_BUCKET_NAME || secrets.STAGING_GCP_BUCKET_NAME }}
-
 
 jobs:
   setup:
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.env }}
+    env:
+      GOOGLE_PROJECT_ID: ${{ github.event.inputs.env == 'production' && secrets.PROD_GOOGLE_PROJECT_ID || secrets.STAGING_GOOGLE_PROJECT_ID }}
+      GCR_HOST: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCR_HOST || secrets.STAGING_GCR_HOST }}
+      GCR_IMAGE_NAME: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCR_IMAGE_NAME || secrets.STAGING_GCR_IMAGE_NAME }}
+      GCP_BUCKET_NAME: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCP_BUCKET_NAME || secrets.STAGING_GCP_BUCKET_NAME }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup GitHub CLI
+        uses: cli/gh-actions/setup-gh@v2
 
       # ----- load env-scoped config secrets (unchanged from your deploy) -----
       - name: Load environment config
@@ -54,12 +58,26 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_BOOTSTRAP_KEY }}
 
+      - name: Setup gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GOOGLE_PROJECT_ID }}
+
+      - name: Select token for GitHub API
+        run: |
+          if [ -n "${{ secrets.GH_ADMIN_TOKEN }}" ]; then
+            echo "GH_TOKEN=${{ secrets.GH_ADMIN_TOKEN }}" >> $GITHUB_ENV
+          else
+            echo "GH_TOKEN=${{ github.token }}" >> $GITHUB_ENV
+          fi
+
       - name: Ensure GitHub environments exist
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ env.GH_TOKEN }}
         run: |
-          gh api -X PUT "repos/${GITHUB_REPOSITORY}/environments/staging" -f name=staging >/dev/null
-          gh api -X PUT "repos/${GITHUB_REPOSITORY}/environments/production" -f name=production >/dev/null
+          for ENV in staging production; do
+            gh api -X PUT "repos/${{ github.repository }}/environments/$ENV" >/dev/null || true
+          done
 
       - name: Set gcloud project
         run: |
@@ -201,7 +219,7 @@ jobs:
 
       - name: Set environment secrets (shared) for staging & production
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ env.GH_TOKEN }}
         run: |
           for TARGET_ENV in staging production; do
             echo "Setting secrets for env: $TARGET_ENV"
