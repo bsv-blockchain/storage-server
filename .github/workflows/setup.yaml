@@ -130,9 +130,9 @@ jobs:
             CREATE_OUT=$(gcloud storage buckets create "gs://$BUCKET_NAME" \
               --project="$PROJECT_ID" \
               --location="${{ env.REGION }}" \
-              --uniform-bucket-level-access \
+              --uniform-bucket-level-access 2>&1) \
               --default-storage-class=AUTO_CLASS \
-              --no-soft-delete 2>&1)
+              --soft-delete-duration=0
             CREATE_RC=$?
             set -e
             if [ "$CREATE_RC" -ne 0 ]; then
