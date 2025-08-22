@@ -17,6 +17,8 @@ on:
 permissions:
   contents: read
   id-token: write
+  actions: write
+
 
 env:
   ENV_NAME: ${{ github.event.inputs.env }}           # staging | production
@@ -48,6 +50,13 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_BOOTSTRAP_KEY }}
+
+      - name: Ensure GitHub environments exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/environments/staging" -f name=staging >/dev/null
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/environments/production" -f name=production >/dev/null
 
       - name: Set gcloud project
         run: |
@@ -182,10 +191,10 @@ jobs:
           fi
 
       # ----- write the two shared secrets into BOTH environments -----
-      - name: Install GitHub CLI
-        uses: cli/cli@v2
-        with:
-          version: 'latest'
+      - name: Verify GitHub CLI
+        run: |
+          gh --version
+          gh auth status || true
 
       - name: Set environment secrets (shared) for staging & production
         env:
