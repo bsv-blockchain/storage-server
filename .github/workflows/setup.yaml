@@ -54,6 +54,17 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_BOOTSTRAP_KEY }}
+      - name: Fill PROJECT_ID from auth context (fallback)
+        run: |
+          if [ -z "$PROJECT_ID" ]; then
+            if [ -n "$CLOUDSDK_CORE_PROJECT" ]; then
+              echo "PROJECT_ID=$CLOUDSDK_CORE_PROJECT" >> $GITHUB_ENV
+            elif [ -n "$GOOGLE_CLOUD_PROJECT" ]; then
+              echo "PROJECT_ID=$GOOGLE_CLOUD_PROJECT" >> $GITHUB_ENV
+            elif [ -n "$GCP_PROJECT" ]; then
+              echo "PROJECT_ID=$GCP_PROJECT" >> $GITHUB_ENV
+            fi
+          fi
 
       - name: Setup gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -107,6 +118,7 @@ jobs:
 
       # ----- create bucket if missing + optional CORS -----
       - name: Create GCS bucket (idempotent)
+        if: env.BUCKET_NAME != ''
         run: |
           if ! gcloud storage buckets describe "gs://$BUCKET_NAME" >/dev/null 2>&1; then
             gcloud storage buckets create "gs://$BUCKET_NAME" --location="${{ env.REGION }}" --uniform-bucket-level-access
@@ -127,6 +139,7 @@ jobs:
           echo "GCS_SA=service-${PROJECT_NUM}@gs-project-accounts.iam.gserviceaccount.com" >> $GITHUB_ENV
 
       - name: Grant Eventarc SA read access to bucket
+        if: env.BUCKET_NAME != ''
         run: |
           gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_NAME" \
             --member="serviceAccount:${EVENTARC_SA}" \
@@ -206,6 +219,7 @@ jobs:
 
       # ----- create Artifact Registry repo from repo/image -----
       - name: Create Artifact Registry repository
+        if: env.IMAGE_NAME != ''
         run: |
           REPO_NAME="$(echo "$IMAGE_NAME" | cut -d'/' -f1)"   # repo/image → repo
           if ! gcloud artifacts repositories describe "$REPO_NAME" --location="${{ env.REGION }}" >/dev/null 2>&1; then
