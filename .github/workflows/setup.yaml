@@ -117,35 +117,26 @@ jobs:
             compute.googleapis.com
 
       # ----- create bucket if missing + optional CORS -----
-      - name: Create GCS bucket (idempotent)
-        if: env.BUCKET_NAME != ''
+      - name: Create or update GCS bucket (Autoclass ON, Soft delete OFF)
         run: |
-          # Check if the bucket is accessible in this project; if not, attempt to create it.
+          set -e
           if gcloud storage buckets describe "gs://$BUCKET_NAME" >/dev/null 2>&1; then
-            echo "Bucket gs://$BUCKET_NAME already exists."
+            echo "Bucket exists; updating settings…"
+            # Enable Autoclass on existing bucket
+            gcloud storage buckets update "gs://$BUCKET_NAME" --autoclass
+            # Ensure soft delete is OFF
+            gcloud storage buckets update "gs://$BUCKET_NAME" --clear-soft-delete
           else
-            echo "Creating bucket gs://$BUCKET_NAME in project $PROJECT_ID, region ${{ env.REGION }}"
-            # Temporarily disable 'exit on error' to inspect the create failure and print a clearer message.
-            set +e
-            CREATE_OUT=$(gcloud storage buckets create "gs://$BUCKET_NAME" \
+            echo "Creating bucket gs://$BUCKET_NAME in $PROJECT_ID ($REGION)…"
+            gcloud storage buckets create "gs://$BUCKET_NAME" \
               --project="$PROJECT_ID" \
-              --location="${{ env.REGION }}" \
-              --uniform-bucket-level-access 2>&1) \
-              --autoclass \
-              --soft-delete-duration=0
-            CREATE_RC=$?
-            set -e
-            if [ "$CREATE_RC" -ne 0 ]; then
-              echo "$CREATE_OUT"
-              if echo "$CREATE_OUT" | grep -qiE 'HTTPError 409|requested bucket name is not available|already exists'; then
-                echo "::error::GCS bucket name '$BUCKET_NAME' is already taken globally and not accessible in project '$PROJECT_ID'. Choose a unique name (e.g., ${PROJECT_ID}-${ENV_NAME}-uhrp-<suffix>) and update the ${{ github.event.inputs.env == 'production' && 'PROD_GCP_BUCKET_NAME' || 'STAGING_GCP_BUCKET_NAME' }} secret in the '${{ github.event.inputs.env }}' environment."
-                exit 1
-              else
-                echo "::error::Failed to create bucket 'gs://$BUCKET_NAME' (exit $CREATE_RC). See logs above for details."
-                exit "$CREATE_RC"
-              fi
-            fi
+              --location="$REGION" \
+              --uniform-bucket-level-access \
+              --autoclass
+            # Explicitly disable soft delete (some orgs default to 7 days)
+            gcloud storage buckets update "gs://$BUCKET_NAME" --clear-soft-delete
           fi
+
           # Apply CORS only if the bucket is accessible in this project
           if [ -f bucket-cors-config.json ]; then
             if gcloud storage buckets describe "gs://$BUCKET_NAME" >/dev/null 2>&1; then
