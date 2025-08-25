@@ -35,7 +35,6 @@ jobs:
           echo "GCR_IMAGE_NAME set? ${{ secrets.GCR_IMAGE_NAME != '' }}"
           echo "NODE_ENV set? ${{ secrets.NODE_ENV != '' }}"
           echo "HOSTING_DOMAIN set? ${{ secrets.HOSTING_DOMAIN != '' }}"
-          echo "MIGRATE_KEY set? ${{ secrets.MIGRATE_KEY != '' }}"
           echo "PRICE_PER_GB_MO set? ${{ secrets.PRICE_PER_GB_MO != '' }}"
           echo "GCP_STORAGE_CREDS set? ${{ secrets.GCP_STORAGE_CREDS != '' }}"
           echo "GCR_PUSH_KEY set? ${{ secrets.GCR_PUSH_KEY != '' }}"
@@ -75,7 +74,7 @@ jobs:
       - name: Decode deployer key
         id: decode
         run: |
-          echo "${{ secrets.GCP_DEPLOYER_KEY }}" | base64 -d > "$RUNNER_TEMP/deployer.json"
+          echo "${{ secrets.GCR_PUSH_KEY }}" | base64 -d > "$RUNNER_TEMP/deployer.json"
           printf 'json<<EOF\n%s\nEOF\n' "$(cat "$RUNNER_TEMP/deployer.json")" >> $GITHUB_OUTPUT
       - name: Auth to GCP
         uses: google-github-actions/auth@v2
@@ -103,7 +102,6 @@ jobs:
           SERVICE: ${{ env.CURRENT_BRANCH == 'production' && 'prod-uhrp' || 'staging-uhrp' }}
           NODE_ENV: ${{ secrets.NODE_ENV }}
           HOSTING_DOMAIN: ${{ secrets.HOSTING_DOMAIN }}
-          MIGRATE_KEY: ${{ secrets.MIGRATE_KEY }}
           PRICE_PER_GB_MO: ${{ secrets.PRICE_PER_GB_MO }}
           GCP_STORAGE_CREDS: ${{ secrets.GCP_STORAGE_CREDS }}
           GCP_BUCKET_NAME: ${{ env.GCP_BUCKET_NAME }}
