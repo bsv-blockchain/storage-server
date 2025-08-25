@@ -8,58 +8,60 @@ on:
 
 env:
   CURRENT_BRANCH: ${{ github.ref_name == 'production' && 'production' || 'master' }}
-  GCR_HOST: ${{ github.ref_name == 'production' && secrets.PROD_GCR_HOST || secrets.STAGING_GCR_HOST }}
-  GOOGLE_PROJECT_ID: ${{ github.ref_name == 'production' && secrets.PROD_GOOGLE_PROJECT_ID || secrets.STAGING_GOOGLE_PROJECT_ID }}
-  GCR_IMAGE_NAME: ${{ github.ref_name == 'production' && secrets.PROD_GCR_IMAGE_NAME || secrets.STAGING_GCR_IMAGE_NAME }}
-  GCP_BUCKET_NAME: ${{ github.ref_name == 'production' && secrets.PROD_GCP_BUCKET_NAME || secrets.STAGING_GCP_BUCKET_NAME }}
-  DOCKERHUB_USERNAME: ${{ github.ref_name == 'production' && secrets.PROD_DOCKERHUB_USERNAME || secrets.STAGING_DOCKERHUB_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ github.ref_name == 'production' && secrets.PROD_DOCKERHUB_TOKEN || secrets.STAGING_DOCKERHUB_TOKEN }}
+  
 
 jobs:
   build:
     name: Deploy
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'production' && 'production' || 'staging' }}
+    env:
+      GCR_HOST: ${{ secrets.GCR_HOST }}
+      GOOGLE_PROJECT_ID: ${{ secrets.GOOGLE_PROJECT_ID }}
+      GCR_IMAGE_NAME: ${{ secrets.GCR_IMAGE_NAME }}
+      GCP_BUCKET_NAME: ${{ secrets.GCP_BUCKET_NAME }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - name: Debug secrets presence (production)
         if: ${{ github.ref_name == 'production' }}
         run: |
           echo "ENV=production"
-          echo "ADMIN_TOKEN set? ${{ secrets.PROD_ADMIN_TOKEN != '' }}"
-          echo "BSV_NETWORK set? ${{ secrets.PROD_BSV_NETWORK != '' }}"
-          echo "GCP_BUCKET_NAME set? ${{ secrets.PROD_GCP_BUCKET_NAME != '' }}"
-          echo "GCR_HOST set? ${{ secrets.PROD_GCR_HOST != '' }}"
-          echo "GOOGLE_PROJECT_ID set? ${{ secrets.PROD_GOOGLE_PROJECT_ID != '' }}"
-          echo "GCR_IMAGE_NAME set? ${{ secrets.PROD_GCR_IMAGE_NAME != '' }}"
-          echo "NODE_ENV set? ${{ secrets.PROD_NODE_ENV != '' }}"
-          echo "HOSTING_DOMAIN set? ${{ secrets.PROD_HOSTING_DOMAIN != '' }}"
-          echo "MIGRATE_KEY set? ${{ secrets.PROD_MIGRATE_KEY != '' }}"
-          echo "PRICE_PER_GB_MO set? ${{ secrets.PROD_PRICE_PER_GB_MO != '' }}"
+          echo "ADMIN_TOKEN set? ${{ secrets.ADMIN_TOKEN != '' }}"
+          echo "BSV_NETWORK set? ${{ secrets.BSV_NETWORK != '' }}"
+          echo "GCP_BUCKET_NAME set? ${{ secrets.GCP_BUCKET_NAME != '' }}"
+          echo "GCR_HOST set? ${{ secrets.GCR_HOST != '' }}"
+          echo "GOOGLE_PROJECT_ID set? ${{ secrets.GOOGLE_PROJECT_ID != '' }}"
+          echo "GCR_IMAGE_NAME set? ${{ secrets.GCR_IMAGE_NAME != '' }}"
+          echo "NODE_ENV set? ${{ secrets.NODE_ENV != '' }}"
+          echo "HOSTING_DOMAIN set? ${{ secrets.HOSTING_DOMAIN != '' }}"
+          echo "PRICE_PER_GB_MO set? ${{ secrets.PRICE_PER_GB_MO != '' }}"
           echo "GCP_STORAGE_CREDS set? ${{ secrets.GCP_STORAGE_CREDS != '' }}"
-          echo "SERVER_PRIVATE_KEY set? ${{ secrets.PROD_SERVER_PRIVATE_KEY != '' }}"
-          echo "MIN_HOSTING_MINUTES set? ${{ secrets.PROD_MIN_HOSTING_MINUTES != '' }}"
-          echo "WALLET_STORAGE_URL set? ${{ secrets.PROD_WALLET_STORAGE_URL != '' }}"
-          echo "HTTP_PORT set? ${{ secrets.PROD_HTTP_PORT != '' }}"
+          echo "GCR_PUSH_KEY set? ${{ secrets.GCR_PUSH_KEY != '' }}"
+          echo "SERVER_PRIVATE_KEY set? ${{ secrets.SERVER_PRIVATE_KEY != '' }}"
+          echo "MIN_HOSTING_MINUTES set? ${{ secrets.MIN_HOSTING_MINUTES != '' }}"
+          echo "WALLET_STORAGE_URL set? ${{ secrets.WALLET_STORAGE_URL != '' }}"
+          echo "HTTP_PORT set? ${{ secrets.HTTP_PORT != '' }}"
 
       - name: Debug secrets presence (staging)
         if: ${{ github.ref_name != 'production' }}
         run: |
           echo "ENV=staging"
-          echo "ADMIN_TOKEN set? ${{ secrets.STAGING_ADMIN_TOKEN != '' }}"
-          echo "BSV_NETWORK set? ${{ secrets.STAGING_BSV_NETWORK != '' }}"
-          echo "GCP_BUCKET_NAME set? ${{ secrets.STAGING_GCP_BUCKET_NAME != '' }}"
-          echo "GCR_HOST set? ${{ secrets.STAGING_GCR_HOST != '' }}"
-          echo "GOOGLE_PROJECT_ID set? ${{ secrets.STAGING_GOOGLE_PROJECT_ID != '' }}"
-          echo "GCR_IMAGE_NAME set? ${{ secrets.STAGING_GCR_IMAGE_NAME != '' }}"
-          echo "NODE_ENV set? ${{ secrets.STAGING_NODE_ENV != '' }}"
-          echo "HOSTING_DOMAIN set? ${{ secrets.STAGING_HOSTING_DOMAIN != '' }}"
-          echo "MIGRATE_KEY set? ${{ secrets.STAGING_MIGRATE_KEY != '' }}"
-          echo "PRICE_PER_GB_MO set? ${{ secrets.STAGING_PRICE_PER_GB_MO != '' }}"
+          echo "ADMIN_TOKEN set? ${{ secrets.ADMIN_TOKEN != '' }}"
+          echo "BSV_NETWORK set? ${{ secrets.BSV_NETWORK != '' }}"
+          echo "GCP_BUCKET_NAME set? ${{ secrets.GCP_BUCKET_NAME != '' }}"
+          echo "GCR_HOST set? ${{ secrets.GCR_HOST != '' }}"
+          echo "GOOGLE_PROJECT_ID set? ${{ secrets.GOOGLE_PROJECT_ID != '' }}"
+          echo "GCR_IMAGE_NAME set? ${{ secrets.GCR_IMAGE_NAME != '' }}"
+          echo "NODE_ENV set? ${{ secrets.NODE_ENV != '' }}"
+          echo "HOSTING_DOMAIN set? ${{ secrets.HOSTING_DOMAIN != '' }}"
+          echo "PRICE_PER_GB_MO set? ${{ secrets.PRICE_PER_GB_MO != '' }}"
           echo "GCP_STORAGE_CREDS set? ${{ secrets.GCP_STORAGE_CREDS != '' }}"
-          echo "SERVER_PRIVATE_KEY set? ${{ secrets.STAGING_SERVER_PRIVATE_KEY != '' }}"
-          echo "MIN_HOSTING_MINUTES set? ${{ secrets.STAGING_MIN_HOSTING_MINUTES != '' }}"
-          echo "WALLET_STORAGE_URL set? ${{ secrets.STAGING_WALLET_STORAGE_URL != '' }}"
-          echo "HTTP_PORT set? ${{ secrets.STAGING_HTTP_PORT != '' }}"
+          echo "GCR_PUSH_KEY set? ${{ secrets.GCR_PUSH_KEY != '' }}"
+          echo "SERVER_PRIVATE_KEY set? ${{ secrets.SERVER_PRIVATE_KEY != '' }}"
+          echo "MIN_HOSTING_MINUTES set? ${{ secrets.MIN_HOSTING_MINUTES != '' }}"
+          echo "WALLET_STORAGE_URL set? ${{ secrets.WALLET_STORAGE_URL != '' }}"
+          echo "HTTP_PORT set? ${{ secrets.HTTP_PORT != '' }}"
 
       - name: Login to Docker Hub
         if: ${{ env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
@@ -69,50 +71,37 @@ jobs:
           password: ${{ env.DOCKERHUB_TOKEN }}
 
       - uses: actions/checkout@v2
-      - name: Decode deployer key
-        id: decode
-        run: |
-          echo "${{ secrets.GCP_DEPLOYER_KEY }}" | base64 -d > "$RUNNER_TEMP/deployer.json"
-          printf 'json<<EOF\n%s\nEOF\n' "$(cat "$RUNNER_TEMP/deployer.json")" >> $GITHUB_OUTPUT
-      - name: Auth to GCP
-        uses: google-github-actions/auth@v2
+      - uses: RafikFarhad/push-to-gcr-github-action@v5-beta
         with:
-          credentials_json: ${{ steps.decode.outputs.json }}
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-      - name: Configure Docker to use Artifact Registry
-        run: |
-          gcloud auth configure-docker "$GCR_HOST" -q
-      - name: Build and push container
-        run: |
-          FULL_IMAGE="${GCR_HOST}/${GOOGLE_PROJECT_ID}/${GCR_IMAGE_NAME}"
-          TAG="${{ env.CURRENT_BRANCH }}-${{ github.sha }}"
-          docker build -t "$FULL_IMAGE:$TAG" .
-          docker push "$FULL_IMAGE:$TAG"
+          gcloud_service_key: ${{ secrets.GCR_PUSH_KEY }}
+          registry: ${{ env.GCR_HOST }}
+          project_id: ${{ env.GOOGLE_PROJECT_ID }}
+          image_name: ${{ env.GCR_IMAGE_NAME }}
+          image_tag: ${{ env.CURRENT_BRANCH }}-${{ github.sha }}
+
       - name: "Create service description file"
         run: "./scripts/mkenv.sh service.${{ env.CURRENT_BRANCH }}.yaml ./notifier/${{ env.CURRENT_BRANCH == 'production' && 'prod' || 'staging' }}.functions.env.yaml"
         env:
           IMAGE: "${{ env.GCR_HOST }}/${{ env.GOOGLE_PROJECT_ID }}/${{ env.GCR_IMAGE_NAME }}:${{ env.CURRENT_BRANCH }}-${{ github.sha }}"
           SERVICE: ${{ env.CURRENT_BRANCH == 'production' && 'prod-uhrp' || 'staging-uhrp' }}
-          NODE_ENV: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_NODE_ENV || secrets.STAGING_NODE_ENV }}
-          HOSTING_DOMAIN: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_HOSTING_DOMAIN || secrets.STAGING_HOSTING_DOMAIN }}
-          MIGRATE_KEY: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_MIGRATE_KEY || secrets.STAGING_MIGRATE_KEY }}
-          PRICE_PER_GB_MO: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_PRICE_PER_GB_MO || secrets.STAGING_PRICE_PER_GB_MO }}
+          NODE_ENV: ${{ secrets.NODE_ENV }}
+          HOSTING_DOMAIN: ${{ secrets.HOSTING_DOMAIN }}
+          PRICE_PER_GB_MO: ${{ secrets.PRICE_PER_GB_MO }}
           GCP_STORAGE_CREDS: ${{ secrets.GCP_STORAGE_CREDS }}
           GCP_BUCKET_NAME: ${{ env.GCP_BUCKET_NAME }}
           GCP_PROJECT_ID: ${{ env.GOOGLE_PROJECT_ID }}
-          SERVER_PRIVATE_KEY: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_SERVER_PRIVATE_KEY || secrets.STAGING_SERVER_PRIVATE_KEY }}
-          MIN_HOSTING_MINUTES: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_MIN_HOSTING_MINUTES || secrets.STAGING_MIN_HOSTING_MINUTES }}
-          ADMIN_TOKEN: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_ADMIN_TOKEN || secrets.STAGING_ADMIN_TOKEN }}
-          WALLET_STORAGE_URL: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_WALLET_STORAGE_URL || secrets.STAGING_WALLET_STORAGE_URL }}
-          BSV_NETWORK: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_BSV_NETWORK || secrets.STAGING_BSV_NETWORK }}
-          HTTP_PORT: ${{ env.CURRENT_BRANCH == 'production' && secrets.PROD_HTTP_PORT || secrets.STAGING_HTTP_PORT }}
+          SERVER_PRIVATE_KEY: ${{ secrets.SERVER_PRIVATE_KEY }}
+          MIN_HOSTING_MINUTES: ${{ secrets.MIN_HOSTING_MINUTES }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          WALLET_STORAGE_URL: ${{ secrets.WALLET_STORAGE_URL }}
+          BSV_NETWORK: ${{ secrets.BSV_NETWORK }}
+          HTTP_PORT: ${{ secrets.HTTP_PORT }}
 
       - name: "Authenticate with GCP"
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ steps.decode.outputs.json }}
+          credentials_json: ${{ secrets.GCP_STORAGE_CREDS }}
       - name: "Determine bucket region from Cloud Storage"
         id: bucket
         run: |
