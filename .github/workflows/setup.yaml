@@ -221,19 +221,7 @@ jobs:
               --member="serviceAccount:${COMPUTE_SA}" \
               --role="$ROLE" || true
           done
-
-      # ----- generate keys -----
-      - name: Generate key for Deploy SA (base64 output)
-        run: |
-          gcloud iam service-accounts keys create "$RUNNER_TEMP/deployer.json" \
-            --iam-account="$DEPLOYER_SA"
-          base64 -w0 "$RUNNER_TEMP/deployer.json" > "$RUNNER_TEMP/deployer.b64"
-
-      - name: Generate key for Default Compute SA (raw JSON)
-        run: |
-          gcloud iam service-accounts keys create "$RUNNER_TEMP/compute.json" \
-            --iam-account="$COMPUTE_SA"
-
+      
       # ----- create Artifact Registry repo from repo/image -----
       - name: Create Artifact Registry repository
         if: env.IMAGE_NAME != ''
@@ -246,22 +234,6 @@ jobs:
           else
             echo "Repo '$REPO_NAME' already exists in ${{ env.REGION }}."
           fi
-
-      # ----- write the two shared secrets into BOTH environments -----
-      - name: Verify GitHub CLI
-        run: |
-          gh --version
-          gh auth status || true
-
-      - name: Set environment secrets (shared) for staging & production
-        env:
-          GH_TOKEN: ${{ env.GH_TOKEN }}
-        run: |
-          for TARGET_ENV in staging production; do
-            echo "Setting secrets for env: $TARGET_ENV"
-            gh secret set GCP_DEPLOYER_KEY --env "$TARGET_ENV" --body "$(cat $RUNNER_TEMP/deployer.b64)"
-            gh secret set GCP_STORAGE_CREDS --env "$TARGET_ENV" --body "$(cat $RUNNER_TEMP/compute.json)"
-          done
 
       - name: Summary
         run: |
