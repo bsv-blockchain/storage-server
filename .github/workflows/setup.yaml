@@ -132,7 +132,7 @@ jobs:
               --project="$PROJECT_ID" \
               --location="$REGION" \
               --uniform-bucket-level-access \
-              --autoclass
+              --enable-autoclass
             # Explicitly disable soft delete (some orgs default to 7 days)
             gcloud storage buckets update "gs://$BUCKET_NAME" --clear-soft-delete
           fi
