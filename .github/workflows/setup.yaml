@@ -149,7 +149,7 @@ jobs:
           gcloud beta services identity create --service=eventarc.googleapis.com || true
           PROJECT_NUM=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
           echo "PROJECT_NUM=$PROJECT_NUM" >> $GITHUB_ENV
-          echo "GCS_SA=service-${PROJECT_NUM}@gs-project-accounts.iam.gserviceaccount.com" >> $GITHUB_ENV
+          echo "GCS_SA=${PROJECT_NUM}@gs-project-accounts.iam.gserviceaccount.com" >> $GITHUB_ENV
 
       - name: Grant GCS SA read access to bucket
         if: env.BUCKET_NAME != ''
