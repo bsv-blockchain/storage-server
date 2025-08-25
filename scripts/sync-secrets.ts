@@ -1,30 +1,21 @@
-#!/usr/bin/env ts-node
-
 /**
  * Sync GitHub Environment Secrets for staging/prod.
  *
  * Requirements:
  * - GitHub CLI installed: https://cli.github.com/
- * - Logged in: `gh auth login` (or GH_TOKEN env is fine)
+ * - Logged in: `gh auth login`s
  *
  * Usage:
- *   ts-node scripts/sync-secrets.ts --repo your-org/your-repo --env staging --create-env
- *   ts-node scripts/sync-secrets.ts --repo your-org/your-repo --env prod --create-env
+ *   npm run secrets:staging
+ *   npm run secrets:prod
  *
  * Reads from: secrets/<env>.env (KEY=VALUE lines)
  * Writes: Environment Secrets named KEY (unprefixed), scoped to the selected environment.
  */
 
-import { execFileSync, spawnSync, execSync } from "node:child_process";
-import {
-  existsSync,
-  readFileSync,
-  writeFileSync,
-  unlinkSync,
-  mkdtempSync,
-} from "node:fs";
+import { spawnSync, execSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 
 type EnvName = "staging" | "prod";
 
@@ -86,43 +77,6 @@ function ensureEnvironment(repository: string, env: string) {
     { stdio: "inherit" }
   );
   if (res.status !== 0) die(`Failed to create environment '${env}'.`);
-}
-
-function writeTemp(content: string): string {
-  const dir = mkdtempSync(join(tmpdir(), "gh-secret-"));
-  const p = join(dir, "body");
-  writeFileSync(p, content, { encoding: "utf8" });
-  return p;
-}
-
-function setGhSecret(
-  repository: string,
-  name: string,
-  value: string,
-  env: string
-) {
-  // use a temp file to support multiline content safely
-  const tmpPath = writeTemp(value);
-  try {
-    const args = [
-      "secret",
-      "set",
-      name,
-      "-R",
-      repository,
-      "--body-file",
-      tmpPath,
-      "-e",
-      env,
-    ];
-    execFileSync("gh", args, { stdio: "inherit" });
-  } catch (e) {
-    die(`Failed to set secret ${name} for env ${env}.`);
-  } finally {
-    try {
-      unlinkSync(tmpPath);
-    } catch {}
-  }
 }
 
 function parseEnvFile(src: string): Record<string, string> {
