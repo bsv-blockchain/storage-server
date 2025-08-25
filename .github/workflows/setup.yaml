@@ -122,9 +122,7 @@ jobs:
           set -e
           if gcloud storage buckets describe "gs://$BUCKET_NAME" >/dev/null 2>&1; then
             echo "Bucket exists; updating settings…"
-            # Enable Autoclass on existing bucket
-            gcloud storage buckets update "gs://$BUCKET_NAME" --autoclass
-            # Ensure soft delete is OFF
+            gcloud storage buckets update "gs://$BUCKET_NAME" --enable-autoclass
             gcloud storage buckets update "gs://$BUCKET_NAME" --clear-soft-delete
           else
             echo "Creating bucket gs://$BUCKET_NAME in $PROJECT_ID ($REGION)…"
@@ -133,7 +131,6 @@ jobs:
               --location="$REGION" \
               --uniform-bucket-level-access \
               --enable-autoclass
-            # Explicitly disable soft delete (some orgs default to 7 days)
             gcloud storage buckets update "gs://$BUCKET_NAME" --clear-soft-delete
           fi
 
