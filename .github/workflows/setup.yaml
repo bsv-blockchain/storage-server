@@ -20,8 +20,8 @@ permissions:
   actions: write
 
 env:
-  ENV_NAME: ${{ github.event.inputs.env }}           # staging | production
-  REGION:   ${{ github.event.inputs.region }}        # e.g., us-west1
+  ENV_NAME: ${{ github.event.inputs.env }} # staging | production
+  REGION: ${{ github.event.inputs.region }} # e.g., us-west1
 
 jobs:
   setup:
@@ -44,7 +44,7 @@ jobs:
           echo "BUCKET_NAME=${{ env.GCP_BUCKET_NAME }}" >> $GITHUB_ENV
           echo "GCR_HOST=${{ env.GCR_HOST }}" >> $GITHUB_ENV
           echo "IMAGE_NAME=${{ env.GCR_IMAGE_NAME }}" >> $GITHUB_ENV
-        
+
       # ----- authenticate with bootstrap owner key -----
       - name: Write bootstrap key
         run: |
@@ -142,7 +142,7 @@ jobs:
               echo "Skipping CORS: bucket gs://$BUCKET_NAME is not accessible in project $PROJECT_ID."
             fi
           fi
-  
+
       # ----- eventarc identity + IAM plumbing -----
       - name: Ensure Eventarc service identity exists
         run: |
@@ -152,14 +152,14 @@ jobs:
           echo "EVENTARC_SA=service-${PROJECT_NUM}@gcp-sa-eventarc.iam.gserviceaccount.com" >> $GITHUB_ENV
           echo "PROJECT_SA=service-${PROJECT_NUM}@gs-project-accounts.iam.gserviceaccount.com" >> $GITHUB_ENV
 
-      - name: Grant GCS SA read access to bucket
+      - name: Grant Eventarc SA read access to bucket
         if: env.BUCKET_NAME != ''
         run: |
           gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_NAME" \
             --member="serviceAccount:${EVENTARC_SA}" \
             --role="roles/storage.legacyBucketReader" || true
 
-      - name: Allow GCS SA to publish to Pub/Sub
+      - name: Allow GS Project SA to publish to Pub/Sub
         run: |
           gcloud projects add-iam-policy-binding "$PROJECT_ID" \
             --member="serviceAccount:${PROJECT_SA}" \
@@ -218,7 +218,7 @@ jobs:
               --member="serviceAccount:${COMPUTE_SA}" \
               --role="$ROLE" || true
           done
-      
+
       # ----- create Artifact Registry repo from repo/image -----
       - name: Create Artifact Registry repository
         if: env.IMAGE_NAME != ''
