@@ -12,7 +12,7 @@
  *   ts-node scripts/sync-secrets.ts --repo your-org/your-repo --env prod --create-env
  *
  * Reads from: secrets/<env>.env (KEY=VALUE lines)
- * Writes: Environment Secrets named STAGING_KEY or PROD_KEY (matching your deploy.yaml)
+ * Writes: Environment Secrets named KEY (unprefixed), scoped to the selected environment.
  */
 
 import { execFileSync, spawnSync, execSync } from "node:child_process";
@@ -45,18 +45,17 @@ if (!existsSync(secretsFile)) {
 }
 
 const kv = parseEnvFile(readFileSync(secretsFile, "utf8"));
-const envLabel = envName === "prod" ? "production" : "staging"; // just for logs
-const prefix = envName === "prod" ? "PROD_" : "STAGING_";
+const envLabel = envName === "prod" ? "production" : "staging"; // GitHub Environment name
 
 // Ensure the GitHub Environment exists
 if (createEnv) ensureEnvironment(repo, envLabel);
 
 const keys = Object.keys(kv);
 console.log(
-  `Syncing ${keys.length} secrets to ${repo} environment=${envLabel} with prefix=${prefix}`
+  `Syncing ${keys.length} secrets to ${repo} environment=${envLabel} (unprefixed names)`
 );
 
-bulkSetSecrets(repo, envLabel, prefix, kv);
+bulkSetSecrets(repo, envLabel, kv);
 
 console.log(`Done. Pushed ${keys.length} secrets to ${repo} (${envLabel})`);
 
@@ -171,12 +170,11 @@ function getRepoFromGit(): string {
 function bulkSetSecrets(
   repository: string,
   env: string,
-  prefix: "PROD_" | "STAGING_",
   kv: Record<string, string>
 ) {
   const tmp = join(process.cwd(), `.tmp_${env}_secrets_${Date.now()}.env`);
   const lines = Object.entries(kv).map(
-    ([k, v]) => `${prefix}${k}=${v.replace(/\n/g, "\\n")}`
+    ([k, v]) => `${k}=${v.replace(/\n/g, "\\n")}`
   );
   writeFileSync(tmp, lines.join("\n"));
   const res = spawnSync(

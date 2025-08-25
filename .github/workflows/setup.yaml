@@ -28,10 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.env }}
     env:
-      GOOGLE_PROJECT_ID: ${{ github.event.inputs.env == 'production' && secrets.PROD_GOOGLE_PROJECT_ID || secrets.STAGING_GOOGLE_PROJECT_ID }}
-      GCR_HOST: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCR_HOST || secrets.STAGING_GCR_HOST }}
-      GCR_IMAGE_NAME: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCR_IMAGE_NAME || secrets.STAGING_GCR_IMAGE_NAME }}
-      GCP_BUCKET_NAME: ${{ github.event.inputs.env == 'production' && secrets.PROD_GCP_BUCKET_NAME || secrets.STAGING_GCP_BUCKET_NAME }}
+      GOOGLE_PROJECT_ID: ${{ secrets.GOOGLE_PROJECT_ID }}
+      GCR_HOST: ${{ secrets.GCR_HOST }}
+      GCR_IMAGE_NAME: ${{ secrets.GCR_IMAGE_NAME }}
+      GCP_BUCKET_NAME: ${{ secrets.GCP_BUCKET_NAME }}
 
     steps:
       - name: Checkout
