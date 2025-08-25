@@ -101,7 +101,7 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ steps.decode.outputs.json }}
+          credentials_json: ${{ secrets.GCR_PUSH_KEY }}
       - name: "Determine bucket region from Cloud Storage"
         id: bucket
         run: |
