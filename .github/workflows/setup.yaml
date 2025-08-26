@@ -124,13 +124,15 @@ jobs:
             echo "Bucket exists; updating settings…"
             gcloud storage buckets update "gs://$BUCKET_NAME" --enable-autoclass
             gcloud storage buckets update "gs://$BUCKET_NAME" --clear-soft-delete
+            gcloud storage buckets update "gs://$BUCKET_NAME" --no-public-access-prevention
           else
             echo "Creating bucket gs://$BUCKET_NAME in $PROJECT_ID ($REGION)…"
             gcloud storage buckets create "gs://$BUCKET_NAME" \
               --project="$PROJECT_ID" \
               --location="$REGION" \
               --uniform-bucket-level-access \
-              --enable-autoclass
+              --enable-autoclass \
+              --no-public-access-prevention
             gcloud storage buckets update "gs://$BUCKET_NAME" --clear-soft-delete
           fi
 
