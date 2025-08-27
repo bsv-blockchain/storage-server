@@ -2,7 +2,6 @@ import 'dotenv/config'
 import express, { Request, Response, NextFunction } from 'express'
 import bodyparser from 'body-parser'
 import prettyjson from 'prettyjson'
-import { spawn } from 'child_process'
 import { PrivateKey } from '@bsv/sdk'
 import { createAuthMiddleware } from '@bsv/auth-express-middleware'
 import { createPaymentMiddleware } from '@bsv/payment-express-middleware'
@@ -96,7 +95,7 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
     const wallet = await getWallet()
     const authMiddleware = createAuthMiddleware({
       wallet,
-      allowUnauthenticated: false
+      allowUnauthenticated: true
     })
 
     const paymentMiddleware = createPaymentMiddleware({
@@ -132,7 +131,6 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
     app.use(authMiddleware);
     app.use(paymentMiddleware)
 
-
     // Secured, post-auth routes are added
     postAuthRoutes.forEach((route) => {
       console.log(`adding https post-auth route ${route.path}`)
@@ -159,6 +157,7 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
 
     app.listen(HTTP_PORT, () => {
       console.log('UHRP Storage Server listening on port', HTTP_PORT)
+
       const identityKey = PrivateKey
         .fromString(SERVER_PRIVATE_KEY).toPublicKey().toString()
       console.log(`UHRP Host Identity Key: ${identityKey}`)

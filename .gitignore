@@ -18,3 +18,5 @@ staging.functions.env.yaml
 dist
 out
 app
+secrets/staging.env
+secrets/prod.env

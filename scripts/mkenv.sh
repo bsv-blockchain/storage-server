@@ -12,8 +12,11 @@ spec:
       containers:
       - image: $IMAGE
         ports:
-        - name: h2c
+        - name: http1
           containerPort: 8080
+        resources:
+          limits:
+            memory: \"4Gi\"
         env:" > $1
 
 echo "Appending environment variables to $1"
