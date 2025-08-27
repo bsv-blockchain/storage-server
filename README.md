@@ -1,5 +1,3 @@
-
-
 # UHRP Storage Server – Deployment Guide
 
 This guide walks you through deploying **UHRP Storage Server** on Google Cloud Platform (GCP) with continuous delivery via GitHub Actions. When you finish, you’ll have:
@@ -115,10 +113,10 @@ Refer to the inline comments in `.env.example` and update the fields as appropri
 | **PRICE_PER_GB_MO** | Monthly price (USD) for user per GB stored | `0.03` |
 | **WALLET_STORAGE_URL** | URL of the Toolbox Wallet storage server | `https://staging-storage.babbage.systems` |
 | **HTTP_PORT** | Port your app listens on inside the container | `8080` |
-| **DOCKERHUB_USERNAME** | *OPTIONAL* Docker account username for Github Actions | `my-docker-username` |
+| **DOCKERHUB_USERNAME** | *OPTIONAL* Docker account username for GitHub Actions | `my-docker-username` |
 | **DOCKERHUB_PASSWORD** | *OPTIONAL* Docker account password | `my-docker-password` |
 
-> You don’t need to fill in `GCP_STORAGE_CREDS` or the `GCR_PUSH_KEY` yet. These will be generated later when you create runtime and deployment service accounts. These will be generated later when you create runtime and deployment service accounts.
+> You don’t need to fill in `GCP_STORAGE_CREDS` or the `GCR_PUSH_KEY` yet. These will be generated later when you create Runtime and Deployer service accounts.
 
 ----------
 
@@ -173,7 +171,7 @@ The **Setup GCP** workflow (`.github/workflows/setup.yaml`) automates the initia
         
     - Creates two service accounts:
         
-        - **Deployment** (used by GitHub Actions to build & deploy).
+        - **Deployer** (used by GitHub Actions to build & deploy).
             
         - **Runtime** (used by Cloud Run to access the bucket).
             
@@ -192,14 +190,14 @@ When the workflow completes successfully, your project will have all required GC
 
 After the workflow finishes:
 
-1.  Go to **IAM & Admin > Service Accounts**, select both the **Deployment** and **Runtime** accounts, and generate a **JSON key** for each.
+1.  Go to **IAM & Admin > Service Accounts**, select both the **Deployer** and **Runtime** accounts, and generate a **JSON key** for each.
     
 2.  Paste the raw JSON for each into your env file:
     
 | Secret | What it's for | Example |
 | -- | -- | -- |
-| **GCP_STORAGE_CREDS** | JSON Key for the **runtime** service account that Cloud Run uses to access the bucket | `{ "type": "service_account", ... "compute@developer.gserviceaccount.com" ... }` |
-| **GCR_PUSH_KEY** | JSON Key for the **deployment** service account that is used by GitHub Action to deploy the project | `{ "type": "service_account", ... "iam.gserviceaccount.com" ... }` |
+| **GCP_STORAGE_CREDS** | JSON Key for the **Runtime** service account that Cloud Run uses to access the bucket | `{ "type": "service_account", ... "compute@developer.gserviceaccount.com" ... }` |
+| **GCR_PUSH_KEY** | JSON Key for the **Deployer** service account that is used by GitHub Action to deploy the project | `{ "type": "service_account", ... "iam.gserviceaccount.com" ... }` |
 
 3.  Re-run the secrets sync for your environment:
     
@@ -223,7 +221,7 @@ After the workflow finishes:
     
 4.  Deploy/replace the Cloud Run service in the bucket’s region.
     
-5.  Deploy the notifier Cloud Function.
+5.  Deploy the notifier Cloud Run service.
     
 
 Every push to the **`master`** branch triggers the staging deployment. A push to **`production`** does the same but reads only the production secrets.
