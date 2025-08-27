@@ -118,8 +118,8 @@ jobs:
           ./deploy${{ env.CURRENT_BRANCH == 'production' && 'Prod' || 'Staging' }}.sh "$GCP_BUCKET_NAME"
       - name: Allow public (allUsers) to invoke the service
         run: |
-          gcloud run services add-iam-policy-binding $SERVICE_NAME \
-            --region $REGION \
+          gcloud run services add-iam-policy-binding ${{ env.CURRENT_BRANCH == 'production' && 'prod-uhrp' || 'staging-uhrp' }} \
+            --region ${{ steps.bucket.outputs.region }} \
             --platform managed \
             --member="allUsers" \
             --role="roles/run.invoker"
