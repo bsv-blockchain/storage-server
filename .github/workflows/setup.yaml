@@ -134,6 +134,9 @@ jobs:
               --enable-autoclass \
               --no-public-access-prevention
             gcloud storage buckets update "gs://$BUCKET_NAME" --clear-soft-delete
+            gcloud storage buckets add-iam-policy-binding "gs://${BUCKET_NAME}" \
+              --member="allUsers" \
+              --role="roles/storage.objectViewer"
           fi
 
           # Apply CORS only if the bucket is accessible in this project
