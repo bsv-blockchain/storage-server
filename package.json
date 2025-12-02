@@ -22,7 +22,7 @@
     "axios": "^1.11.0",
     "body-parser": "^1.20.1",
     "dotenv": "^16.4.7",
-    "express": "^4.18.2",
+    "express": "^4.22.1",
     "prettyjson": "^1.2.5",
     "semver": "^7.7.2"
   },
