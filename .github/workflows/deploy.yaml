@@ -71,13 +71,28 @@ jobs:
           password: ${{ env.DOCKERHUB_PASSWORD }}
 
       - uses: actions/checkout@v2
-      - uses: RafikFarhad/push-to-gcr-github-action@v5-beta
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          gcloud_service_key: ${{ secrets.GCR_PUSH_KEY }}
-          registry: ${{ env.GCR_HOST }}
-          project_id: ${{ env.GOOGLE_PROJECT_ID }}
-          image_name: ${{ env.GCR_IMAGE_NAME }}
-          image_tag: ${{ env.CURRENT_BRANCH }}-${{ github.sha }}
+          credentials_json: ${{ secrets.GCR_PUSH_KEY }}
+
+      - name: Setup gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker Auth for GCR
+        run: gcloud auth configure-docker ${{ env.GCR_HOST }} --quiet
+
+      - name: Build and Push Docker Image to GCR
+        run: |
+          IMAGE_BASE="${{ env.GCR_HOST }}/${{ env.GOOGLE_PROJECT_ID }}/${{ env.GCR_IMAGE_NAME }}"
+          IMAGE_TAG="${{ env.CURRENT_BRANCH }}-${{ github.sha }}"
+          docker build \
+            -t "${IMAGE_BASE}:latest" \
+            -t "${IMAGE_BASE}:${IMAGE_TAG}" \
+            .
+          docker push "${IMAGE_BASE}:latest"
+          docker push "${IMAGE_BASE}:${IMAGE_TAG}"
 
       - name: "Create service description file"
         run: "./scripts/mkenv.sh service.${{ env.CURRENT_BRANCH }}.yaml ./notifier/${{ env.CURRENT_BRANCH == 'production' && 'prod' || 'staging' }}.functions.env.yaml"
