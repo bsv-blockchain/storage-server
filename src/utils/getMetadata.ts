@@ -65,7 +65,7 @@ export async function getMetadata(uhrpUrl: string, uploaderIdentityKey: string, 
   const [gcsMetadata] = await file.getMetadata()
 
   const {
-    name,
+    name = '',
     size,
     contentType = '',
   } = gcsMetadata
@@ -73,7 +73,7 @@ export async function getMetadata(uhrpUrl: string, uploaderIdentityKey: string, 
   return {
     objectIdentifier,
     name,
-    size,
+    size: String(size ?? ''),
     contentType,
     expiryTime: maxpiry
   }
