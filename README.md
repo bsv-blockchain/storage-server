@@ -1,5 +1,9 @@
 # UHRP Storage Server – Deployment Guide
 
+> **⚠️ This repository is being archived.**
+>
+> Development has moved to the [ts-stack monorepo](https://github.com/bsv-blockchain/ts-stack/tree/main/infrastructure%20components/uhrp-server-cloud-bucket). Open issues will be migrated there. This repository will be archived in the coming days — please open new issues and PRs in the monorepo going forward.
+
 This guide walks you through deploying **UHRP Storage Server** on Google Cloud Platform (GCP) with continuous delivery via GitHub Actions. When you finish, you’ll have:
 
 -   A single‑region **Cloud Storage bucket** that stores all UHRP data.
